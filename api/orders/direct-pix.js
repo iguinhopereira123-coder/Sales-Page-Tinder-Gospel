@@ -18,11 +18,25 @@ function getOrigin(req) {
   return req.headers.origin || '';
 }
 
+function normalizeOrigin(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    return `${url.protocol}//${url.host}`.toLowerCase();
+  } catch {
+    return String(value).trim().replace(/\/+$/, '').toLowerCase();
+  }
+}
+
 function isAllowedOrigin(origin) {
   const configured = process.env.ALLOWED_ORIGINS || '';
   if (!configured.trim()) return true;
-  const allowed = configured.split(',').map(item => item.trim()).filter(Boolean);
-  return allowed.includes(origin);
+  const normalizedOrigin = normalizeOrigin(origin);
+  const allowed = configured
+    .split(',')
+    .map(item => normalizeOrigin(item))
+    .filter(Boolean);
+  return allowed.includes(normalizedOrigin);
 }
 
 function parseBody(req) {
@@ -111,6 +125,10 @@ export default async function handler(req, res) {
 
     const origin = getOrigin(req);
     if (!isAllowedOrigin(origin)) {
+      console.error('[direct-pix] origin bloqueada:', {
+        received: origin,
+        allowed: process.env.ALLOWED_ORIGINS || ''
+      });
       return json(res, 403, { ok: false, error: 'Origin não permitida.' });
     }
 

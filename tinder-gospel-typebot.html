@@ -483,6 +483,7 @@
   <div class="spacer-bottom"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/zod@3.23.8/lib/index.umd.min.js"></script>
 <script>
 const chat = document.getElementById('chat');
 const btns = document.getElementById('btns');
@@ -508,6 +509,41 @@ let leadNome = '';
 let leadEmail = '';
 let leadPhone = '';
 let pixOrderCreated = false;
+const z = window.Zod;
+
+const nameSchema = z ? z.string().trim().min(2).max(80) : null;
+const emailSchema = z ? z.string().trim().email() : null;
+const phoneSchema = z
+  ? z.string().transform((value) => value.replace(/\D/g, '')).refine((digits) => /^(55)?\d{10,11}$/.test(digits))
+  : null;
+
+function validateName(value) {
+  const raw = String(value || '').trim();
+  if (!nameSchema) return { ok: raw.length >= 2, value: raw };
+  const parsed = nameSchema.safeParse(raw);
+  return { ok: parsed.success, value: parsed.success ? parsed.data : raw };
+}
+
+function validateEmail(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!emailSchema) return { ok: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw), value: raw };
+  const parsed = emailSchema.safeParse(raw);
+  return { ok: parsed.success, value: parsed.success ? parsed.data : raw };
+}
+
+function validatePhone(value) {
+  const raw = String(value || '');
+  if (!phoneSchema) {
+    const digits = raw.replace(/\D/g, '');
+    const ok = /^(55)?\d{10,11}$/.test(digits);
+    return { ok, value: digits.startsWith('55') ? digits : `55${digits}` };
+  }
+
+  const parsed = phoneSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, value: raw };
+  const digits = parsed.data;
+  return { ok: true, value: digits.startsWith('55') ? digits : `55${digits}` };
+}
 
 function openExternalInNewTab(url) {
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -877,17 +913,59 @@ async function flowProduto() {
 }
 
 async function flowCaptura(nome) {
-  leadNome = nome;
-  await send(`Que nome bonito, ${nome}! 😊`, true);
+  const checkedName = validateName(nome);
+  if (!checkedName.ok) {
+    await send('Nome invalido. Digite seu nome completo, por favor.', true);
+    showInput('Seu nome...', (novoNome) => flowCaptura(novoNome));
+    return;
+  }
+
+  leadNome = checkedName.value;
+  await send(`Que nome bonito, ${leadNome}! 😊`, true);
   await send('Qual seu melhor e-mail para receber o acesso?');
   showInput('Seu e-mail...', (email) => flowCaptura2(email));
 }
 
 async function flowCaptura2(email) {
-  leadEmail = email;
+  const checkedEmail = validateEmail(email);
+  if (!checkedEmail.ok) {
+    await send('Esse e-mail parece invalido. Pode enviar novamente?', true);
+    showInput('Seu e-mail...', (novoEmail) => flowCaptura2(novoEmail));
+    return;
+  }
+
+  leadEmail = checkedEmail.value;
   await send('Anotado! E seu WhatsApp com DDD?', true);
   showInput('Seu WhatsApp com DDD...', (tel) => {
-    leadPhone = tel;
+    const checkedPhone = validatePhone(tel);
+    if (!checkedPhone.ok) {
+      send('Telefone invalido. Envie com DDD, por exemplo: 11999999999.', true).then(() => {
+        showInput('Seu WhatsApp com DDD...', (novoTel) => {
+          const retryPhone = validatePhone(novoTel);
+          if (!retryPhone.ok) {
+            send('Ainda nao consegui validar o telefone. Tente novamente com DDD.', true).then(() => {
+              showInput('Seu WhatsApp com DDD...', (telFinal) => {
+                const finalPhone = validatePhone(telFinal);
+                if (!finalPhone.ok) {
+                  send('Vou seguir com o telefone informado e a equipe valida com voce no suporte.');
+                  leadPhone = String(telFinal || '');
+                  flowPagamento();
+                  return;
+                }
+                leadPhone = finalPhone.value;
+                flowPagamento();
+              });
+            });
+            return;
+          }
+          leadPhone = retryPhone.value;
+          flowPagamento();
+        });
+      });
+      return;
+    }
+
+    leadPhone = checkedPhone.value;
     flowPagamento();
   });
 }
