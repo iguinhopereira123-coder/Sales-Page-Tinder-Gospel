@@ -797,16 +797,39 @@ async function sendPaymentProofWebhook(file) {
     throw new Error(`HTTP ${response.status}${details}`);
   }
 
-  let body = {};
+  const rawText = await response.text();
+  if (!rawText) return null;
   try {
-    body = await response.json();
-  } catch {}
-  return body?.data ?? null;
+    const parsed = JSON.parse(rawText);
+    return parsed?.data ?? parsed;
+  } catch {
+    return rawText;
+  }
 }
 
 function normalizeAnalysisPayload(payload) {
   if (!payload) return null;
-  if (Array.isArray(payload) && payload.length) return payload[0];
+  if (typeof payload === 'string') {
+    try {
+      const parsed = JSON.parse(payload);
+      return normalizeAnalysisPayload(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (Array.isArray(payload) && payload.length) {
+    const first = payload[0];
+    if (first?.json) return first.json;
+    return first;
+  }
+  if (payload?.json && typeof payload.json === 'object') return payload.json;
+  if (Array.isArray(payload?.body) && payload.body.length) return payload.body[0];
+  if (payload?.body && typeof payload.body === 'object' && !Array.isArray(payload.body)) return payload.body;
+  if (Array.isArray(payload?.items) && payload.items.length) {
+    const first = payload.items[0];
+    if (first?.json) return first.json;
+    return first;
+  }
   if (Array.isArray(payload?.data) && payload.data.length) return payload.data[0];
   if (Array.isArray(payload?.resultado) && payload.resultado.length) return payload.resultado[0];
   if (payload?.resultado || payload?.eh_comprovante_pix !== undefined) return payload;
@@ -815,12 +838,13 @@ function normalizeAnalysisPayload(payload) {
 
 function isPositiveProofResult(analysis) {
   if (!analysis) return false;
-  const resultado = String(analysis.resultado || '').toLowerCase();
+  const resultado = String(analysis.resultado || '').trim().toLowerCase();
+  const bool = (value) => value === true || String(value).toLowerCase() === 'true';
   return (
     resultado === 'positivo' &&
-    analysis.eh_comprovante_pix === true &&
-    analysis.valor_valido === true &&
-    analysis.destinatario_valido === true
+    bool(analysis.eh_comprovante_pix) &&
+    bool(analysis.valor_valido) &&
+    bool(analysis.destinatario_valido)
   );
 }
 
@@ -994,6 +1018,8 @@ uploadOk.addEventListener('click', async () => {
     try {
       const webhookResponse = await sendPaymentProofWebhook(file);
       analysisResult = normalizeAnalysisPayload(webhookResponse);
+      console.log('Resultado bruto webhook comprovante:', webhookResponse);
+      console.log('Resultado normalizado comprovante:', analysisResult);
     } catch (error) {
       uploadOk.disabled = false;
       uploadOk.textContent = 'Enviar comprovante ✓';
