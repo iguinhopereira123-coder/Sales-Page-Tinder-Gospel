@@ -214,6 +214,14 @@ fbq('track', 'PageView');
   }
 
   .bubble .tick { color: #34B7F1; font-size: 12px; }
+  .bubble-media {
+    display: block;
+    width: 100%;
+    max-width: 260px;
+    border-radius: 10px;
+    object-fit: cover;
+    box-shadow: var(--shadow);
+  }
 
   /* TYPING INDICATOR */
   .typing-wrap {
@@ -544,6 +552,10 @@ const SUPORTE = 'https://wa.me/5519920069960?text=Ol%C3%A1!%20Preciso%20de%20aju
 const ORDER_API_PATH = '/api/orders/direct-pix';
 const PAYMENT_PROOF_API_PATH = '/api/payment-proof-webhook';
 const CHECKOUT_ID = '9510d38c-d56d-4129-a6da-f44e56037753';
+const SOCIAL_PROOF_IMAGES = [
+  'assets/social-proof-1.png',
+  'assets/social-proof-2.png'
+];
 const UTM_STORAGE_KEY = 'typebot_tinder_tracking_v1';
 const TRACKING_KEYS = [
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
@@ -1003,6 +1015,37 @@ function addPixBox(key) {
   requestAnimationFrame(() => { requestAnimationFrame(() => { wrap.classList.add('show'); scrollToBottom(); }); });
 }
 
+function addMediaBubble(imageUrl, caption = '') {
+  const wrap = document.createElement('div');
+  wrap.className = 'bubble-wrap in';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble in first';
+  const media = document.createElement('img');
+  media.className = 'bubble-media';
+  media.src = imageUrl;
+  media.alt = caption || 'Prova social da comunidade';
+  media.loading = 'lazy';
+  bubble.appendChild(media);
+  if (caption) {
+    const captionEl = document.createElement('div');
+    captionEl.style.marginTop = '8px';
+    captionEl.textContent = caption;
+    bubble.appendChild(captionEl);
+  }
+  const time = document.createElement('div');
+  time.className = 'bubble-time';
+  time.textContent = getTime();
+  wrap.appendChild(bubble);
+  wrap.appendChild(time);
+  chat.insertBefore(wrap, typingEl);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      wrap.classList.add('show');
+      scrollToBottom();
+    });
+  });
+}
+
 function showInput(placeholder, callback) {
   inputArea.classList.add('show');
   inputField.placeholder = placeholder || 'Digite aqui...';
@@ -1155,6 +1198,12 @@ async function flowTransicao() {
 
 // ETAPA 4 — PRODUTO
 async function flowProduto() {
+  await send('Antes de te mostrar os detalhes, olha como a comunidade ja esta ativa 👇', true);
+  addMediaBubble(SOCIAL_PROOF_IMAGES[0], 'Print real do grupo com conversas e interacoes.');
+  await new Promise(r => setTimeout(r, 500));
+  addMediaBubble(SOCIAL_PROOF_IMAGES[1], 'Varios grupos ativos por regiao dentro da comunidade.');
+  await send('Tem muita gente participando todos os dias.');
+
   await send('Ao entrar na Comunidade Tinder Gospel, você recebe: 👇', true);
   await send('✅ 💬 Acesso à comunidade exclusiva no WhatsApp<br>✅ 📱 App de relacionamento cristão (brinde)<br>✅ 📖 E-book exclusivo (brinde)');
   await send('Tudo isso por apenas <strong>R$ 19,90</strong>.');
