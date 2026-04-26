@@ -606,7 +606,14 @@ async function createDirectPixOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderPayload)
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      let details = '';
+      try {
+        const body = await response.json();
+        details = body?.error ? ` - ${body.error}` : '';
+      } catch {}
+      throw new Error(`HTTP ${response.status}${details}`);
+    }
     pixOrderCreated = true;
   } catch (error) {
     // Permite nova tentativa se a requisição falhar

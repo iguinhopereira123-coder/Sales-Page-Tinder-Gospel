@@ -1,5 +1,13 @@
 const REQUIRED_FIELDS = ['transaction_id', 'status', 'amount', 'checkout_id', 'description'];
 
+class UpstreamError extends Error {
+  constructor(message, status = 502) {
+    super(message);
+    this.name = 'UpstreamError';
+    this.status = status;
+  }
+}
+
 function json(res, status, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -72,7 +80,7 @@ async function sendToSupabase(orderPayload) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY não configuradas no servidor.');
+    throw new UpstreamError('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY não configuradas no servidor.', 500);
   }
 
   const baseUrl = supabaseUrl.replace(/\/$/, '');
@@ -91,7 +99,7 @@ async function sendToSupabase(orderPayload) {
 
   if (!upstreamResponse.ok) {
     const text = await upstreamResponse.text();
-    throw new Error(`Falha no upstream (${upstreamResponse.status}): ${text}`);
+    throw new UpstreamError(`Falha no Supabase (${upstreamResponse.status}): ${text}`, 502);
   }
 
   return upstreamResponse.json();
@@ -124,7 +132,11 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true, data: created });
   } catch (error) {
     console.error('[direct-pix] erro:', error);
-    return json(res, 500, { ok: false, error: 'Erro interno ao criar ordem.' });
+    const status = error?.status || 500;
+    return json(res, status, {
+      ok: false,
+      error: error?.message || 'Erro interno ao criar ordem.'
+    });
   }
 }
 
