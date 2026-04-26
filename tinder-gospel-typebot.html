@@ -482,12 +482,138 @@ fbq('track', 'PageView');
   }
 
   .spacer-bottom { height: env(safe-area-inset-bottom, 0px); flex-shrink: 0; }
+
+  /* Banner para navegador in-app (Instagram/FB/TikTok) */
+  .inapp-banner {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: #fff7e6;
+    border-bottom: 1px solid #f0c36d;
+    color: #5a3a00;
+    padding: 10px 14px calc(10px + env(safe-area-inset-top, 0px));
+    font-size: 13px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .inapp-banner.show { display: block; }
+  .inapp-banner strong { display: block; margin-bottom: 4px; font-size: 13.5px; color: #4a2f00; }
+  .inapp-banner button {
+    margin-top: 8px;
+    background: #128C7E;
+    color: #fff;
+    border: none;
+    border-radius: 18px;
+    padding: 7px 16px;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: var(--font);
+  }
+  .inapp-banner .inapp-close {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    background: transparent;
+    color: #5a3a00;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 6px;
+  }
+
+  /* Modal copiar link (fallback p/ webviews) */
+  .copy-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .copy-modal.show { display: flex; }
+  .copy-modal-card {
+    background: #fff;
+    border-radius: 14px;
+    max-width: 360px;
+    width: 100%;
+    padding: 18px 16px 14px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+  }
+  .copy-modal-title {
+    font-weight: 700;
+    color: #1a1a1a;
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+  .copy-modal-desc {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  .copy-modal-url {
+    background: #f3f5f7;
+    border: 1px solid #e0e3e7;
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 12.5px;
+    color: #128C7E;
+    word-break: break-all;
+    user-select: all;
+    margin-bottom: 12px;
+    max-height: 110px;
+    overflow-y: auto;
+  }
+  .copy-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .copy-modal-actions button {
+    flex: 1;
+    border: none;
+    border-radius: 18px;
+    padding: 9px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font);
+    min-width: 110px;
+  }
+  .copy-modal-primary { background: #25D366; color: #fff; }
+  .copy-modal-secondary { background: #eee; color: #333; }
 </style>
 </head>
 <body>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=1542583313498944&ev=PageView&noscript=1"
 /></noscript>
+
+<!-- Banner: orienta usuario a abrir no navegador real (Chrome/Safari) -->
+<div class="inapp-banner" id="inapp-banner" role="alert">
+  <button class="inapp-close" id="inapp-close" aria-label="Fechar">×</button>
+  <strong>Para uma melhor experiência</strong>
+  Abra esta página no <b>Chrome</b> ou <b>Safari</b>. Toque no menu (•••) e escolha "Abrir no navegador".
+  <br>
+  <button id="inapp-open-browser" type="button">Abrir no navegador</button>
+</div>
+
+<!-- Modal: copiar link (fallback caso o navegador bloqueie nova aba) -->
+<div class="copy-modal" id="copy-modal" role="dialog" aria-modal="true">
+  <div class="copy-modal-card">
+    <div class="copy-modal-title">Não conseguimos abrir uma nova janela</div>
+    <div class="copy-modal-desc">
+      Toque em <b>Copiar link</b> e cole no seu navegador (Chrome ou Safari) para continuar com segurança.
+    </div>
+    <div class="copy-modal-url" id="copy-modal-url"></div>
+    <div class="copy-modal-actions">
+      <button class="copy-modal-primary" id="copy-modal-copy" type="button">Copiar link</button>
+      <button class="copy-modal-secondary" id="copy-modal-close" type="button">Fechar</button>
+    </div>
+  </div>
+</div>
 
 <div class="phone-frame">
 
@@ -702,12 +828,100 @@ function fileToDataUrl(file) {
   });
 }
 
+// Detecta navegadores in-app (Instagram, Facebook, TikTok, Snapchat, etc.)
+// Esses webviews ignoram target="_blank" e window.open e forcam navegacao
+// na propria janela. A unica solucao confiavel e pedir ao usuario que
+// abra a pagina no navegador externo (Chrome/Safari).
+function detectInAppBrowser() {
+  const ua = (navigator.userAgent || '').toLowerCase();
+  const patterns = [
+    'fban', 'fbav', 'fb_iab', 'fbios',           // Facebook
+    'instagram',                                  // Instagram
+    'twitter', 'twitterbot',                      // Twitter / X
+    'line/', 'micromessenger',                    // Line / WeChat
+    'tiktok', 'musical_ly', 'bytedance',          // TikTok
+    'snapchat',                                   // Snapchat
+    'linkedinapp',                                // LinkedIn
+    'pinterest',                                  // Pinterest
+    'kakaotalk',                                  // Kakao
+    'wv)' // Android WebView generico ("; wv)")
+  ];
+  return patterns.some((token) => ua.includes(token));
+}
+
+const IS_IN_APP_BROWSER = detectInAppBrowser();
+
+// Tenta abrir a URL em uma nova aba/janela do navegador.
+// Retorna true se a janela foi aberta com sucesso (popup nao bloqueado),
+// false caso contrario. Esta funcao DEVE ser chamada de forma sincrona
+// dentro de um listener de clique do usuario para que os browsers
+// permitam o popup.
+function tryOpenInNewTab(finalUrl) {
+  let popup = null;
+  try {
+    popup = window.open(finalUrl, '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    popup = null;
+  }
+  if (popup && !popup.closed) {
+    try { popup.opener = null; } catch (_) {}
+    try { popup.focus(); } catch (_) {}
+    return true;
+  }
+  return false;
+}
+
+// Mostra modal solicitando ao usuario copiar/colar o link, usado como
+// ultimo recurso quando estamos em webview ou popup foi bloqueado.
+function showCopyLinkModal(finalUrl) {
+  const modal = document.getElementById('copy-modal');
+  const urlBox = document.getElementById('copy-modal-url');
+  if (!modal || !urlBox) return;
+  urlBox.textContent = finalUrl;
+  modal.classList.add('show');
+}
+
+function hideCopyLinkModal() {
+  const modal = document.getElementById('copy-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+// Ponto unico de abertura de links externos. Estrategia:
+// 1) Se o anchor original existir, deixamos o navegador resolver
+//    naturalmente via target="_blank" (melhor compatibilidade).
+// 2) Como reforco, tentamos window.open de forma sincrona.
+// 3) Se nada abrir (popup bloqueado / webview), exibimos modal
+//    com o link para o usuario copiar.
+function openExternalUrl(rawUrl, sourceEvent) {
+  const finalUrl = appendTrackingParams(rawUrl);
+  const opened = tryOpenInNewTab(finalUrl);
+  if (opened) {
+    if (sourceEvent && typeof sourceEvent.preventDefault === 'function') {
+      sourceEvent.preventDefault();
+    }
+    return true;
+  }
+  // Se popup foi bloqueado e nao temos um <a> ativo, abrimos modal.
+  if (!sourceEvent || !sourceEvent.target || sourceEvent.target.tagName !== 'A') {
+    showCopyLinkModal(finalUrl);
+  } else {
+    // Em webview, o <a target="_blank"> tambem nao abrira em nova aba,
+    // mas ao menos navegara ao destino. Preferimos modal pra avisar.
+    if (IS_IN_APP_BROWSER) {
+      sourceEvent.preventDefault();
+      showCopyLinkModal(finalUrl);
+    }
+    // Caso contrario, deixamos o anchor seguir o caminho nativo.
+  }
+  return false;
+}
+
 function openExternalInNewTab(url) {
-  window.open(appendTrackingParams(url), '_blank', 'noopener,noreferrer');
+  return openExternalUrl(url, null);
 }
 
 function openCheckoutInNewTab() {
-  openExternalInNewTab(CHECKOUT);
+  return openExternalUrl(CHECKOUT, null);
 }
 
 function scrollToBottom(behavior = 'smooth') {
@@ -969,17 +1183,24 @@ function showButtons(items) {
         el.href = finalHref;
         el.target = '_blank';
         el.rel = 'noopener noreferrer';
-        // Forca abertura em nova guia/janela no clique do usuario.
+        // Estrategia robusta: tenta window.open de forma sincrona;
+        // se conseguir, cancela o evento (nao abre 2x). Se popup for
+        // bloqueado, deixa o navegador usar target="_blank" nativo.
+        // Em navegadores in-app (Instagram, FB, TikTok), exibe modal
+        // pra copiar o link.
         el.addEventListener('click', (e) => {
-          e.preventDefault();
           if (typeof el.blur === 'function') el.blur();
-          window.open(finalHref, '_blank', 'noopener,noreferrer');
+          openExternalUrl(item.href, e);
         });
       }
       if (item.action) {
         el.addEventListener('click', () => {
           if (typeof el.blur === 'function') el.blur();
-          if (!item.href) {
+          if (item.href) {
+            // Para itens com href + action, deixamos a navegacao acontecer
+            // primeiro (acima) e disparamos a acao em sequencia.
+            setTimeout(() => item.action(), 800);
+          } else {
             clearButtons();
             addUserBubble(item.label);
             setTimeout(() => item.action(), 400);
@@ -1336,13 +1557,6 @@ async function flowPagamento() {
     { label: '🏦 Pagar por Pix direto', action: () => flowPixDireto() },
     { label: '❓ Tenho uma dúvida', action: () => flowDuvidas() },
   ]);
-
-  const ctaBtn = btns.querySelector('.btn-cta');
-  if (ctaBtn) {
-    ctaBtn.addEventListener('click', () => {
-      setTimeout(() => flowAposCheckout(), 800);
-    });
-  }
 }
 
 async function flowAposCheckout() {
@@ -1369,10 +1583,7 @@ async function flowPixDireto() {
 
   showButtons([
     { label: '✅ Já fiz o Pix', action: () => flowJaPagou() },
-    { label: '💳 Prefiro pagar pelo checkout', action: () => {
-        openCheckoutInNewTab();
-        setTimeout(() => flowAposCheckout(), 600);
-    }},
+    { label: '💳 Prefiro pagar pelo checkout', href: CHECKOUT, action: () => flowAposCheckout() },
     { label: '💬 Falar com suporte', support: true, href: SUPORTE },
   ]);
 }
@@ -1440,7 +1651,7 @@ async function flowDuvidaBoleto() {
   await send('Mas é bem simples — você pode pagar por Pix ou cartão!');
   showButtons([
     { label: '🏦 Pagar por Pix', action: () => flowPixDireto() },
-    { label: '💳 Pagar no cartão', action: () => { openCheckoutInNewTab(); flowAposCheckout(); }},
+    { label: '💳 Pagar no cartão', href: CHECKOUT, action: () => flowAposCheckout() },
   ]);
 }
 
@@ -1450,6 +1661,101 @@ flowStart();
 
 window.addEventListener('resize', () => scrollToBottom('auto'));
 window.addEventListener('orientationchange', () => setTimeout(() => scrollToBottom('auto'), 120));
+
+// === Wiring banner in-app browser e modal copiar link ===========
+(function setupExternalLinkUX() {
+  const banner = document.getElementById('inapp-banner');
+  const closeBtn = document.getElementById('inapp-close');
+  const openBtn = document.getElementById('inapp-open-browser');
+  const modal = document.getElementById('copy-modal');
+  const copyBtn = document.getElementById('copy-modal-copy');
+  const dismissBtn = document.getElementById('copy-modal-close');
+  const urlBox = document.getElementById('copy-modal-url');
+
+  if (IS_IN_APP_BROWSER && banner) {
+    try {
+      if (sessionStorage.getItem('inapp_banner_dismissed') !== '1') {
+        banner.classList.add('show');
+      }
+    } catch (_) {
+      banner.classList.add('show');
+    }
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      banner.classList.remove('show');
+      try { sessionStorage.setItem('inapp_banner_dismissed', '1'); } catch (_) {}
+    });
+  }
+
+  if (openBtn) {
+    openBtn.addEventListener('click', () => {
+      const target = window.location.href;
+      // Em iOS no Instagram/FB, "x-safari-https://" abre o Safari.
+      // Em Android, intent: scheme abre o Chrome. Tentamos varios.
+      const ua = (navigator.userAgent || '').toLowerCase();
+      const isIOS = /iphone|ipad|ipod/.test(ua);
+      const isAndroid = /android/.test(ua);
+
+      if (isIOS) {
+        // Tenta abrir no Safari via x-safari-https
+        const safariUrl = target.replace(/^https?:/, 'x-safari-https:');
+        window.location.href = safariUrl;
+        // Fallback: copiar link
+        setTimeout(() => showCopyLinkModal(target), 800);
+      } else if (isAndroid) {
+        // Intent URL para abrir no Chrome
+        const intentUrl = target.replace(/^https?:\/\//, 'intent://') +
+          '#Intent;scheme=https;package=com.android.chrome;end';
+        window.location.href = intentUrl;
+        setTimeout(() => showCopyLinkModal(target), 800);
+      } else {
+        showCopyLinkModal(target);
+      }
+    });
+  }
+
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', hideCopyLinkModal);
+  }
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) hideCopyLinkModal();
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      const url = urlBox ? urlBox.textContent : '';
+      if (!url) return;
+      let copied = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          copied = true;
+        }
+      } catch (_) {}
+      if (!copied) {
+        try {
+          const tmp = document.createElement('textarea');
+          tmp.value = url;
+          tmp.style.position = 'fixed';
+          tmp.style.left = '-9999px';
+          document.body.appendChild(tmp);
+          tmp.select();
+          document.execCommand('copy');
+          document.body.removeChild(tmp);
+          copied = true;
+        } catch (_) {}
+      }
+      const original = copyBtn.textContent;
+      copyBtn.textContent = copied ? '✓ Link copiado!' : 'Não foi possível copiar';
+      setTimeout(() => { copyBtn.textContent = original; }, 1800);
+    });
+  }
+})();
 </script>
 </body>
 </html>
