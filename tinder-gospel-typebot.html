@@ -718,6 +718,7 @@ let leadNome = '';
 let leadEmail = '';
 let leadPhone = '';
 let pixOrderCreated = false;
+let selectedPaymentMethod = '';
 const z = window.Zod;
 let trackingParams = {};
 
@@ -996,6 +997,10 @@ function sendInitiateCheckoutEvent() {
 }
 
 async function createDirectPixOrder() {
+  if (selectedPaymentMethod !== 'pix_direto') {
+    console.warn('Ordem não criada: método atual não é Pix direto.');
+    return;
+  }
   if (pixOrderCreated) return;
   const orderPayload = getOrderPayload('created');
   const apiUrl = (() => {
@@ -1549,12 +1554,19 @@ async function flowCaptura2(email) {
 
 // ETAPA 6 — PAGAMENTO
 async function flowPagamento() {
+  selectedPaymentMethod = '';
   sendInitiateCheckoutEvent();
   await send('Ótimo! Agora é só garantir seu acesso.', true);
   await send('Como você prefere pagar?');
   showButtons([
-    { label: '💳 Finalizar pagamento (Pix ou cartão)', cta: true, href: CHECKOUT, action: () => flowAposCheckout() },
-    { label: '🏦 Pagar por Pix direto', action: () => flowPixDireto() },
+    { label: '💳 Finalizar pagamento (Pix ou cartão)', cta: true, href: CHECKOUT, action: () => {
+        selectedPaymentMethod = 'checkout';
+        flowAposCheckout();
+    }},
+    { label: '🏦 Pagar por Pix direto', action: () => {
+        selectedPaymentMethod = 'pix_direto';
+        flowPixDireto();
+    }},
     { label: '❓ Tenho uma dúvida', action: () => flowDuvidas() },
   ]);
 }
@@ -1572,6 +1584,7 @@ async function flowAposCheckout() {
 
 // PIX DIRETO
 async function flowPixDireto() {
+  selectedPaymentMethod = 'pix_direto';
   createDirectPixOrder();
   await send('Claro! Você pode fazer o Pix diretamente pela chave abaixo 👇', true);
 
@@ -1583,7 +1596,10 @@ async function flowPixDireto() {
 
   showButtons([
     { label: '✅ Já fiz o Pix', action: () => flowJaPagou() },
-    { label: '💳 Prefiro pagar pelo checkout', href: CHECKOUT, action: () => flowAposCheckout() },
+    { label: '💳 Prefiro pagar pelo checkout', href: CHECKOUT, action: () => {
+        selectedPaymentMethod = 'checkout';
+        flowAposCheckout();
+    }},
     { label: '💬 Falar com suporte', support: true, href: SUPORTE },
   ]);
 }
@@ -1650,8 +1666,14 @@ async function flowDuvidaBoleto() {
   await send('No momento não trabalhamos com boleto.', true);
   await send('Mas é bem simples — você pode pagar por Pix ou cartão!');
   showButtons([
-    { label: '🏦 Pagar por Pix', action: () => flowPixDireto() },
-    { label: '💳 Pagar no cartão', href: CHECKOUT, action: () => flowAposCheckout() },
+    { label: '🏦 Pagar por Pix', action: () => {
+        selectedPaymentMethod = 'pix_direto';
+        flowPixDireto();
+    }},
+    { label: '💳 Pagar no cartão', href: CHECKOUT, action: () => {
+        selectedPaymentMethod = 'checkout';
+        flowAposCheckout();
+    }},
   ]);
 }
 
