@@ -302,9 +302,13 @@ fbq('track', 'PageView');
     transition: all 0.15s;
     width: 100%;
     display: block;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-option:hover { background: var(--green); color: #fff; }
   .btn-option:active { transform: scale(0.97); }
+  .btn-option:focus,
+  .btn-option:focus-visible { outline: none; box-shadow: none; }
 
   .btn-cta {
     background: var(--green);
@@ -322,9 +326,13 @@ fbq('track', 'PageView');
     display: block;
     text-decoration: none;
     box-shadow: 0 3px 12px rgba(37,211,102,0.35);
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-cta:hover { background: #1eb85a; transform: translateY(-1px); }
   .btn-cta:active { transform: scale(0.97); }
+  .btn-cta:focus,
+  .btn-cta:focus-visible { outline: none; box-shadow: 0 3px 12px rgba(37,211,102,0.35); }
 
   .btn-support {
     background: transparent;
@@ -341,8 +349,12 @@ fbq('track', 'PageView');
     width: 100%;
     display: block;
     text-decoration: none;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-support:hover { border-color: #667; color: #444; }
+  .btn-support:focus,
+  .btn-support:focus-visible { outline: none; box-shadow: none; }
 
   /* INPUT area */
   .input-area {
@@ -893,6 +905,9 @@ function clearButtons() {
 
 function showButtons(items) {
   clearButtons();
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
   setTimeout(() => {
     items.forEach(item => {
       const el = document.createElement(item.href ? 'a' : 'button');
@@ -904,11 +919,13 @@ function showButtons(items) {
         el.rel = 'noopener noreferrer';
         el.addEventListener('click', e => {
           e.preventDefault();
+          if (typeof el.blur === 'function') el.blur();
           openExternalInNewTab(item.href);
         });
       }
       if (item.action) {
         el.addEventListener('click', () => {
+          if (typeof el.blur === 'function') el.blur();
           if (!item.href) {
             clearButtons();
             addUserBubble(item.label);
