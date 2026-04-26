@@ -1,0 +1,15 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/tinder-gospel-typebot.html"
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs24.x",
+      "maxDuration": 30
+    }
+  }
+}
+
