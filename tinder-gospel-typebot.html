@@ -796,6 +796,32 @@ async function sendPaymentProofWebhook(file) {
     } catch {}
     throw new Error(`HTTP ${response.status}${details}`);
   }
+
+  let body = {};
+  try {
+    body = await response.json();
+  } catch {}
+  return body?.data ?? null;
+}
+
+function normalizeAnalysisPayload(payload) {
+  if (!payload) return null;
+  if (Array.isArray(payload) && payload.length) return payload[0];
+  if (Array.isArray(payload?.data) && payload.data.length) return payload.data[0];
+  if (Array.isArray(payload?.resultado) && payload.resultado.length) return payload.resultado[0];
+  if (payload?.resultado || payload?.eh_comprovante_pix !== undefined) return payload;
+  return null;
+}
+
+function isPositiveProofResult(analysis) {
+  if (!analysis) return false;
+  const resultado = String(analysis.resultado || '').toLowerCase();
+  return (
+    resultado === 'positivo' &&
+    analysis.eh_comprovante_pix === true &&
+    analysis.valor_valido === true &&
+    analysis.destinatario_valido === true
+  );
 }
 
 function showTyping() {
@@ -964,13 +990,22 @@ uploadOk.addEventListener('click', async () => {
     uploadOk.disabled = true;
     uploadOk.textContent = 'Enviando...';
 
+    let analysisResult = null;
     try {
-      await sendPaymentProofWebhook(file);
+      const webhookResponse = await sendPaymentProofWebhook(file);
+      analysisResult = normalizeAnalysisPayload(webhookResponse);
     } catch (error) {
       uploadOk.disabled = false;
       uploadOk.textContent = 'Enviar comprovante ✓';
       console.error('Erro ao enviar comprovante para webhook:', error);
       await send('Nao consegui enviar o comprovante agora. Tente novamente em alguns segundos.', true);
+      return;
+    }
+
+    if (!isPositiveProofResult(analysisResult)) {
+      uploadOk.disabled = false;
+      uploadOk.textContent = 'Enviar comprovante ✓';
+      await send('Ainda nao consegui validar seu comprovante. Confira o arquivo e envie novamente.', true);
       return;
     }
 
@@ -1191,10 +1226,9 @@ async function flowJaPagou() {
 
 // PÓS-PAGAMENTO
 async function flowPostPayment() {
-  await send('Obrigada por enviar! A equipe vai conferir certinho e já te retorna com o acesso. 🙏', true);
-  await send('Que alegria! Seja muito bem-vindo(a) à Comunidade Tinder Gospel. 🎉');
-  await send('A equipe vai te encaminhar o acesso nos próximos minutos.');
-  await send('Se demorar além do esperado, é só chamar no suporte, tudo bem?');
+  await send('Boas noticias! Seu pagamento foi identificado com sucesso. ✅', true);
+  await send('Seu acesso foi enviado no seu e-mail e no seu WhatsApp.');
+  await send('Se nao encontrar agora, confira spam/lixo eletronico e depois nos chame no suporte.');
   showButtons([
     { label: '💬 Falar com suporte', support: true, href: SUPORTE },
   ]);

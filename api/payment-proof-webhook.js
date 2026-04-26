@@ -76,7 +76,14 @@ export default async function handler(req, res) {
       return json(res, 502, { ok: false, error: `Webhook n8n falhou (${response.status}): ${text}` });
     }
 
-    return json(res, 200, { ok: true });
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    return json(res, 200, { ok: true, data });
   } catch (error) {
     console.error('[payment-proof-webhook] erro:', error);
     return json(res, 500, { ok: false, error: 'Erro interno ao enviar comprovante.' });
