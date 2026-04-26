@@ -7,7 +7,6 @@
   ],
   "functions": {
     "api/**/*.js": {
-      "runtime": "nodejs24.x",
       "maxDuration": 30
     }
   }
