@@ -32,6 +32,7 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 fbq('init', '1542583313498944');
 fbq('track', 'PageView');
 </script>
+<script defer src="/_vercel/insights/script.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -964,13 +965,15 @@ function showButtons(items) {
       el.className = item.cta ? 'btn-cta' : item.support ? 'btn-support' : 'btn-option';
       el.textContent = item.label;
       if (item.href) {
-        el.href = appendTrackingParams(item.href);
+        const finalHref = appendTrackingParams(item.href);
+        el.href = finalHref;
         el.target = '_blank';
         el.rel = 'noopener noreferrer';
-        // Mantem comportamento nativo do <a target="_blank"> para
-        // maior compatibilidade no mobile (iOS/Safari).
-        el.addEventListener('click', () => {
+        // Forca abertura em nova guia/janela no clique do usuario.
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
           if (typeof el.blur === 'function') el.blur();
+          window.open(finalHref, '_blank', 'noopener,noreferrer');
         });
       }
       if (item.action) {
