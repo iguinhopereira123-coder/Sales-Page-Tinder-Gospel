@@ -563,8 +563,19 @@ let trackingParams = {};
 const nameSchema = z ? z.string().trim().min(2).max(80) : null;
 const emailSchema = z ? z.string().trim().email() : null;
 const phoneSchema = z
-  ? z.string().transform((value) => value.replace(/\D/g, '')).refine((digits) => /^(55)?\d{10,11}$/.test(digits))
+  ? z
+      .string()
+      .transform((value) => {
+        const digits = value.replace(/\D/g, '');
+        return digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+      })
+      .refine((digits) => /^\d{10,11}$/.test(digits))
   : null;
+
+function normalizePhoneDigits(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+}
 
 function validateName(value) {
   const raw = String(value || '').trim();
@@ -583,15 +594,14 @@ function validateEmail(value) {
 function validatePhone(value) {
   const raw = String(value || '');
   if (!phoneSchema) {
-    const digits = raw.replace(/\D/g, '');
-    const ok = /^(55)?\d{10,11}$/.test(digits);
-    return { ok, value: digits.startsWith('55') ? digits : `55${digits}` };
+    const digits = normalizePhoneDigits(raw);
+    const ok = /^\d{10,11}$/.test(digits);
+    return { ok, value: digits };
   }
 
   const parsed = phoneSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, value: raw };
-  const digits = parsed.data;
-  return { ok: true, value: digits.startsWith('55') ? digits : `55${digits}` };
+  return { ok: true, value: parsed.data };
 }
 
 function readTrackingFromUrl() {
@@ -679,8 +689,7 @@ function generateTransactionId(prefix = 'wa') {
 }
 
 function getOrderPayload(status = 'created') {
-  const phoneDigits = String(leadPhone || '').replace(/\D/g, '');
-  const phoneForOrder = phoneDigits.startsWith('55') ? phoneDigits.slice(2) : phoneDigits;
+  const phoneForOrder = normalizePhoneDigits(leadPhone);
 
   return {
     transaction_id: generateTransactionId('wa'),
@@ -709,7 +718,7 @@ function sendInitiateCheckoutEvent() {
     currency: 'BRL',
     customer_name: String(leadNome || ''),
     customer_email: String(leadEmail || ''),
-    customer_phone: String(leadPhone || '')
+    customer_phone: normalizePhoneDigits(leadPhone)
   };
 
   if (typeof window.fbq === 'function') {
@@ -787,7 +796,7 @@ async function sendPaymentProofWebhook(file) {
   const isDocument = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
   const payload = {
     'Midia ID': `typebot-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-    costumer_phone: String(leadPhone || ''),
+    costumer_phone: normalizePhoneDigits(leadPhone),
     type: isDocument ? 'documentMessage' : 'imageMessage',
     media_name: String(file.name || 'comprovante'),
     media_mime_type: String(file.type || 'application/octet-stream'),
