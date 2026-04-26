@@ -5,6 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Comunidade Tinder Gospel</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  window.pixelId = "69acafa441a18908f9c0134d";
+  var utmifyPixel = document.createElement("script");
+  utmifyPixel.setAttribute("async", "");
+  utmifyPixel.setAttribute("defer", "");
+  utmifyPixel.setAttribute("src", "https://cdn.utmify.com.br/scripts/pixel/pixel.js");
+  document.head.appendChild(utmifyPixel);
+</script>
+<script
+  src="https://cdn.utmify.com.br/scripts/utms/latest.js"
+  data-utmify-prevent-xcod-sck
+  data-utmify-prevent-subids
+  async
+  defer
+></script>
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1542583313498944');
+fbq('track', 'PageView');
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -419,6 +446,9 @@
 </style>
 </head>
 <body>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1542583313498944&ev=PageView&noscript=1"
+/></noscript>
 
 <div class="phone-frame">
 
@@ -501,6 +531,11 @@ const SUPORTE = 'https://wa.me/5519920069960?text=Ol%C3%A1!%20Preciso%20de%20aju
 // Endpoints internos (mesma origem). Segredos ficam somente no backend.
 const ORDER_API_PATH = '/api/orders/direct-pix';
 const CHECKOUT_ID = '9510d38c-d56d-4129-a6da-f44e56037753';
+const UTM_STORAGE_KEY = 'typebot_tinder_tracking_v1';
+const TRACKING_KEYS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+  'src', 'sck', 'xcod', 'fbclid', 'gclid'
+];
 
 let inputCallback = null;
 let uploadDone = false;
@@ -510,6 +545,7 @@ let leadEmail = '';
 let leadPhone = '';
 let pixOrderCreated = false;
 const z = window.Zod;
+let trackingParams = {};
 
 const nameSchema = z ? z.string().trim().min(2).max(80) : null;
 const emailSchema = z ? z.string().trim().email() : null;
@@ -545,8 +581,62 @@ function validatePhone(value) {
   return { ok: true, value: digits.startsWith('55') ? digits : `55${digits}` };
 }
 
+function readTrackingFromUrl() {
+  const params = new URLSearchParams(window.location.search || '');
+  const result = {};
+  TRACKING_KEYS.forEach((key) => {
+    const value = params.get(key);
+    if (value) result[key] = value;
+  });
+  return result;
+}
+
+function readTrackingFromStorage() {
+  try {
+    const raw = localStorage.getItem(UTM_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistTracking(data) {
+  try {
+    localStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function bootstrapTrackingParams() {
+  const fromStorage = readTrackingFromStorage();
+  const fromUrl = readTrackingFromUrl();
+  trackingParams = { ...fromStorage, ...fromUrl };
+  persistTracking(trackingParams);
+}
+
+function getTrackingValue(key, fallback = '') {
+  return String(trackingParams[key] || fallback || '');
+}
+
+function appendTrackingParams(url) {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    TRACKING_KEYS.forEach((key) => {
+      const value = trackingParams[key];
+      if (!value) return;
+      if (!parsed.searchParams.get(key)) {
+        parsed.searchParams.set(key, value);
+      }
+    });
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function openExternalInNewTab(url) {
-  window.open(url, '_blank', 'noopener,noreferrer');
+  window.open(appendTrackingParams(url), '_blank', 'noopener,noreferrer');
 }
 
 function openCheckoutInNewTab() {
@@ -578,11 +668,11 @@ function getOrderPayload(status = 'created') {
     description: 'Comunidade Tinder Gospel',
     utmify_conversion_sent: false,
     meta_conversion_sent: false,
-    utm_source: 'whatsapp',
-    utm_medium: 'chat',
-    utm_campaign: 'whatsapp_manual_order',
-    utm_content: 'typebot_html_flow',
-    utm_term: String(leadPhone || '')
+    utm_source: getTrackingValue('utm_source', 'whatsapp'),
+    utm_medium: getTrackingValue('utm_medium', 'chat'),
+    utm_campaign: getTrackingValue('utm_campaign', 'whatsapp_manual_order'),
+    utm_content: getTrackingValue('utm_content', 'typebot_html_flow'),
+    utm_term: getTrackingValue('utm_term', String(leadPhone || ''))
   };
 }
 
@@ -709,7 +799,7 @@ function showButtons(items) {
       el.className = item.cta ? 'btn-cta' : item.support ? 'btn-support' : 'btn-option';
       el.textContent = item.label;
       if (item.href) {
-        el.href = item.href;
+        el.href = appendTrackingParams(item.href);
         el.target = '_blank';
         el.rel = 'noopener noreferrer';
         el.addEventListener('click', e => {
@@ -1090,6 +1180,7 @@ async function flowDuvidaBoleto() {
 }
 
 // START
+bootstrapTrackingParams();
 flowStart();
 
 window.addEventListener('resize', () => scrollToBottom('auto'));
