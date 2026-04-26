@@ -1237,14 +1237,31 @@ async function flowProduto() {
   await new Promise(r => setTimeout(r, 5000));
   addMediaBubble(SOCIAL_PROOF_IMAGES[1], 'Varios grupos ativos por regiao dentro da comunidade.');
   await send('Tem muita gente participando todos os dias.');
+  await send('Me conta com sinceridade: voce quer mesmo entrar para conhecer alguem com a mesma fe e valores?', true);
+  showButtons([
+    { label: 'Sim, quero entrar e conhecer alguem', action: () => flowProdutoOferta() },
+    { label: 'Quero entender melhor antes', action: () => flowProdutoOferta() },
+    { label: 'Tenho interesse, mas estou em duvida', action: () => flowProdutoOferta() },
+  ]);
+}
+
+async function flowProdutoOferta() {
 
   await send('Ao entrar na Comunidade Tinder Gospel, você recebe: 👇', true);
   await send('✅ 💬 Acesso à comunidade exclusiva no WhatsApp<br>✅ 📱 App de relacionamento cristão (brinde)<br>✅ 📖 E-book exclusivo (brinde)');
   await send('Tudo isso por apenas <strong>R$ 19,90</strong>.');
   await send('E o melhor: o pagamento é único. Você paga só uma vez e tem acesso para sempre. Sem mensalidade, sem renovação. 🙌');
   await send('Depois que confirma, o acesso chega na hora.');
-  await send('Antes de continuar, me diz seu nome?');
+  await send('Posso te apresentar agora as formas de pagamento?', true);
+  showButtons([
+    { label: 'Sim, pode mostrar', action: () => flowIniciarCaptura() },
+    { label: 'Tenho uma dúvida antes', action: () => flowDuvidas() },
+    { label: 'Quero ver de novo o que recebo', action: () => flowProdutoOferta() },
+  ]);
+}
 
+async function flowIniciarCaptura() {
+  await send('Perfeito! Antes de continuar, me diz seu nome?', true);
   showInput('Seu nome...', (nome) => flowCaptura(nome));
 }
 
