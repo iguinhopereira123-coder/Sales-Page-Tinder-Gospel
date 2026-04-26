@@ -834,6 +834,10 @@ function normalizeAnalysisPayload(payload) {
     if (first?.json) return first.json;
     return first;
   }
+  if (payload?.analise && typeof payload.analise === 'object') {
+    // Preserva resultado/mensagem_site e mistura com os campos detalhados da analise
+    return { ...payload, ...payload.analise };
+  }
   if (payload?.json && typeof payload.json === 'object') return payload.json;
   if (Array.isArray(payload?.body) && payload.body.length) return payload.body[0];
   if (payload?.body && typeof payload.body === 'object' && !Array.isArray(payload.body)) return payload.body;
