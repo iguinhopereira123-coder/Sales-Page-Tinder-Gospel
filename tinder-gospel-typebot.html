@@ -429,7 +429,19 @@ fbq('track', 'PageView');
     transition: all 0.15s;
   }
   .upload-label:hover { background: #f0fff4; }
+  .upload-label.selected {
+    border-style: solid;
+    background: #eafff1;
+    border-color: #1eb85a;
+    color: #0f6f42;
+  }
   .upload-label input { display: none; }
+  .upload-file-name {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #2f5142;
+    word-break: break-word;
+  }
   .upload-ok {
     background: var(--green);
     border: none;
@@ -529,8 +541,9 @@ src="https://www.facebook.com/tr?id=1542583313498944&ev=PageView&noscript=1"
 
   <!-- UPLOAD -->
   <div class="upload-area" id="upload-area">
-    <label class="upload-label">
-      📎 Toque aqui para enviar o comprovante
+    <label class="upload-label" id="upload-label">
+      <span id="upload-label-text">📎 Toque aqui para enviar o comprovante</span>
+      <div class="upload-file-name" id="upload-file-name"></div>
       <input type="file" id="file-input" accept="image/*,.pdf" />
     </label>
     <button class="upload-ok" id="upload-ok">Enviar comprovante ✓</button>
@@ -551,6 +564,9 @@ const inputSend = document.getElementById('input-send');
 const uploadArea = document.getElementById('upload-area');
 const fileInput = document.getElementById('file-input');
 const uploadOk = document.getElementById('upload-ok');
+const uploadLabel = document.getElementById('upload-label');
+const uploadLabelText = document.getElementById('upload-label-text');
+const uploadFileName = document.getElementById('upload-file-name');
 
 const CHECKOUT = 'https://universal-checkout.vercel.app/checkout/9510d38c-d56d-4129-a6da-f44e56037753';
 const SUPORTE = 'https://wa.me/5519920069960?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20a%20comunidade%2C%20por%20favor.';
@@ -951,10 +967,10 @@ function showButtons(items) {
         el.href = appendTrackingParams(item.href);
         el.target = '_blank';
         el.rel = 'noopener noreferrer';
-        el.addEventListener('click', e => {
-          e.preventDefault();
+        // Mantem comportamento nativo do <a target="_blank"> para
+        // maior compatibilidade no mobile (iOS/Safari).
+        el.addEventListener('click', () => {
           if (typeof el.blur === 'function') el.blur();
-          openExternalInNewTab(item.href);
         });
       }
       if (item.action) {
@@ -1082,6 +1098,14 @@ inputField.addEventListener('keydown', e => {
 fileInput.addEventListener('change', () => {
   if (fileInput.files.length > 0) {
     uploadOk.classList.add('show');
+    uploadLabel.classList.add('selected');
+    const selectedFile = fileInput.files[0];
+    uploadLabelText.textContent = '✅ Arquivo selecionado';
+    uploadFileName.textContent = selectedFile?.name ? `Arquivo: ${selectedFile.name}` : '';
+  } else {
+    uploadLabel.classList.remove('selected');
+    uploadLabelText.textContent = '📎 Toque aqui para enviar o comprovante';
+    uploadFileName.textContent = '';
   }
 });
 
@@ -1119,6 +1143,10 @@ uploadOk.addEventListener('click', async () => {
 
     uploadDone = true;
     uploadArea.classList.remove('show');
+    uploadLabel.classList.remove('selected');
+    uploadLabelText.textContent = '📎 Toque aqui para enviar o comprovante';
+    uploadFileName.textContent = '';
+    fileInput.value = '';
     clearButtons();
     addUserBubble('📎 Comprovante enviado');
     setTimeout(() => flowPostPayment(), 600);
@@ -1213,7 +1241,7 @@ async function flowProduto() {
   await send('Ao entrar na Comunidade Tinder Gospel, você recebe: 👇', true);
   await send('✅ 💬 Acesso à comunidade exclusiva no WhatsApp<br>✅ 📱 App de relacionamento cristão (brinde)<br>✅ 📖 E-book exclusivo (brinde)');
   await send('Tudo isso por apenas <strong>R$ 19,90</strong>.');
-  await send('É pagamento único, sem mensalidade e sem renovação. 🙌');
+  await send('E o melhor: o pagamento é único. Você paga só uma vez e tem acesso para sempre. Sem mensalidade, sem renovação. 🙌');
   await send('Depois que confirma, o acesso chega na hora.');
   await send('Antes de continuar, me diz seu nome?');
 
@@ -1361,7 +1389,7 @@ async function flowDuvidas() {
 
 async function flowDuvidaMensalidade() {
   await send('Não! É pagamento único de R$ 19,90.', true);
-  await send('Você paga uma vez e acabou. Sem mensalidade, sem renovação, sem surpresa.');
+  await send('Você paga só uma vez e tem acesso para sempre. Sem mensalidade, sem renovação e sem surpresa.');
   showButtons([
     { label: '✅ Quero entrar', action: () => flowPagamento() },
     { label: '❓ Tenho outra dúvida', action: () => flowDuvidas() },
