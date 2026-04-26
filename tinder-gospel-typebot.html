@@ -530,6 +530,7 @@ const CHECKOUT = 'https://universal-checkout.vercel.app/checkout/9510d38c-d56d-4
 const SUPORTE = 'https://wa.me/5519920069960?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20a%20comunidade%2C%20por%20favor.';
 // Endpoints internos (mesma origem). Segredos ficam somente no backend.
 const ORDER_API_PATH = '/api/orders/direct-pix';
+const PAYMENT_PROOF_API_PATH = '/api/payment-proof-webhook';
 const CHECKOUT_ID = '9510d38c-d56d-4129-a6da-f44e56037753';
 const UTM_STORAGE_KEY = 'typebot_tinder_tracking_v1';
 const TRACKING_KEYS = [
@@ -633,6 +634,15 @@ function appendTrackingParams(url) {
   } catch {
     return url;
   }
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Falha ao ler o comprovante.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function openExternalInNewTab(url) {
@@ -745,6 +755,46 @@ async function createDirectPixOrder() {
     // Permite nova tentativa se a requisição falhar
     pixOrderCreated = false;
     console.error('Erro ao criar ordem Pix direto:', error);
+  }
+}
+
+async function sendPaymentProofWebhook(file) {
+  const apiUrl = (() => {
+    if (window.location.protocol === 'file:') return null;
+    return `${window.location.origin}${PAYMENT_PROOF_API_PATH}`;
+  })();
+
+  if (!apiUrl) {
+    throw new Error('API de comprovante indisponível em file://. Rode em servidor.');
+  }
+
+  const fileDataUrl = await fileToDataUrl(file);
+  const isDocument = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+  const payload = {
+    'Midia ID': `typebot-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    costumer_phone: String(leadPhone || ''),
+    type: isDocument ? 'documentMessage' : 'imageMessage',
+    media_name: String(file.name || 'comprovante'),
+    media_mime_type: String(file.type || 'application/octet-stream'),
+    media_data_url: fileDataUrl,
+    media_size: Number(file.size || 0),
+    utms: { ...trackingParams }
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    let details = '';
+    try {
+      const body = await response.json();
+      details = body?.error ? ` - ${body.error}` : '';
+    } catch {}
+    throw new Error(`HTTP ${response.status}${details}`);
   }
 }
 
@@ -903,8 +953,27 @@ fileInput.addEventListener('change', () => {
   }
 });
 
-uploadOk.addEventListener('click', () => {
+uploadOk.addEventListener('click', async () => {
   if (!uploadDone) {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      await send('Nao encontrei o arquivo do comprovante. Tente enviar novamente.', true);
+      return;
+    }
+
+    uploadOk.disabled = true;
+    uploadOk.textContent = 'Enviando...';
+
+    try {
+      await sendPaymentProofWebhook(file);
+    } catch (error) {
+      uploadOk.disabled = false;
+      uploadOk.textContent = 'Enviar comprovante ✓';
+      console.error('Erro ao enviar comprovante para webhook:', error);
+      await send('Nao consegui enviar o comprovante agora. Tente novamente em alguns segundos.', true);
+      return;
+    }
+
     uploadDone = true;
     uploadArea.classList.remove('show');
     clearButtons();
