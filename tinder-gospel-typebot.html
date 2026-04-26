@@ -679,13 +679,16 @@ function generateTransactionId(prefix = 'wa') {
 }
 
 function getOrderPayload(status = 'created') {
+  const phoneDigits = String(leadPhone || '').replace(/\D/g, '');
+  const phoneForOrder = phoneDigits.startsWith('55') ? phoneDigits.slice(2) : phoneDigits;
+
   return {
     transaction_id: generateTransactionId('wa'),
     status,
     amount: 19.9,
     customer_name: String(leadNome || ''),
     customer_email: String(leadEmail || 'seu@email.com'),
-    customer_phone: String(leadPhone || ''),
+    customer_phone: phoneForOrder,
     checkout_id: CHECKOUT_ID,
     description: 'Comunidade Tinder Gospel',
     utmify_conversion_sent: false,
