@@ -813,7 +813,7 @@ async function sendPaymentProofWebhook(file) {
   if (!rawText) return null;
   try {
     const parsed = JSON.parse(rawText);
-    return parsed?.data ?? parsed;
+    return parsed?.analysis ?? parsed?.data ?? parsed;
   } catch {
     return rawText;
   }

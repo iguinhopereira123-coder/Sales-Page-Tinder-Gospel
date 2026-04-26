@@ -41,6 +41,22 @@ function parseBody(req) {
   return req.body;
 }
 
+function normalizeAnalysisPayload(payload) {
+  if (!payload) return null;
+  if (Array.isArray(payload) && payload.length) {
+    const first = payload[0];
+    if (first?.json) return first.json;
+    return first;
+  }
+  if (payload?.json && typeof payload.json === 'object') return payload.json;
+  if (payload?.body && typeof payload.body === 'object' && !Array.isArray(payload.body)) return payload.body;
+  if (Array.isArray(payload?.body) && payload.body.length) return payload.body[0];
+  if (Array.isArray(payload?.data) && payload.data.length) return payload.data[0];
+  if (payload?.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) return payload.data;
+  if (payload?.resultado || payload?.eh_comprovante_pix !== undefined) return payload;
+  return null;
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'Method not allowed' });
@@ -77,13 +93,17 @@ export default async function handler(req, res) {
     }
 
     let data = null;
-    try {
-      data = await response.json();
-    } catch {
-      data = null;
+    const rawText = await response.text();
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = rawText;
+      }
     }
 
-    return json(res, 200, { ok: true, data });
+    const analysis = normalizeAnalysisPayload(data);
+    return json(res, 200, { ok: true, data, analysis });
   } catch (error) {
     console.error('[payment-proof-webhook] erro:', error);
     return json(res, 500, { ok: false, error: 'Erro interno ao enviar comprovante.' });
