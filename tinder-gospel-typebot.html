@@ -938,6 +938,15 @@ function generateTransactionId(prefix = 'wa') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+function hasCompleteLeadForOrder() {
+  const phoneDigits = normalizePhoneDigits(leadPhone);
+  return (
+    String(leadNome || '').trim().length >= 2 &&
+    validateEmail(String(leadEmail || '').trim()).ok &&
+    /^\d{10,11}$/.test(phoneDigits)
+  );
+}
+
 function getOrderPayload(status = 'created') {
   const phoneForOrder = normalizePhoneDigits(leadPhone);
 
@@ -945,8 +954,8 @@ function getOrderPayload(status = 'created') {
     transaction_id: generateTransactionId('wa'),
     status,
     amount: 19.9,
-    customer_name: String(leadNome || ''),
-    customer_email: String(leadEmail || 'seu@email.com'),
+    customer_name: String(leadNome || '').trim(),
+    customer_email: String(leadEmail || '').trim().toLowerCase(),
     customer_phone: phoneForOrder,
     checkout_id: CHECKOUT_ID,
     description: 'Comunidade Tinder Gospel',
@@ -999,6 +1008,10 @@ function sendInitiateCheckoutEvent() {
 async function createDirectPixOrder() {
   if (selectedPaymentMethod !== 'pix_direto') {
     console.warn('Ordem não criada: método atual não é Pix direto.');
+    return;
+  }
+  if (!hasCompleteLeadForOrder()) {
+    console.warn('Ordem não criada: nome, e-mail e WhatsApp válidos são obrigatórios.');
     return;
   }
   if (pixOrderCreated) return;
@@ -1554,6 +1567,10 @@ async function flowCaptura2(email) {
 
 // ETAPA 6 — PAGAMENTO
 async function flowPagamento() {
+  if (!hasCompleteLeadForOrder()) {
+    await send('Antes do pagamento, preciso do seu nome, e-mail e WhatsApp. Vamos lá?', true);
+    return flowIniciarCaptura();
+  }
   selectedPaymentMethod = '';
   sendInitiateCheckoutEvent();
   await send('Ótimo! Agora é só garantir seu acesso.', true);
@@ -1584,6 +1601,10 @@ async function flowAposCheckout() {
 
 // PIX DIRETO
 async function flowPixDireto() {
+  if (!hasCompleteLeadForOrder()) {
+    await send('Para te enviar o Pix e liberar o acesso, preciso do seu nome, e-mail e WhatsApp.', true);
+    return flowIniciarCaptura();
+  }
   selectedPaymentMethod = 'pix_direto';
   createDirectPixOrder();
   await send('Claro! Você pode fazer o Pix diretamente pela chave abaixo 👇', true);

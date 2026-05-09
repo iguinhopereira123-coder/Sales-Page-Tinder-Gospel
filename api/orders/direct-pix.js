@@ -72,6 +72,8 @@ function pickClientPayload(body) {
   return payload;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function validatePayload(payload) {
   for (const field of REQUIRED_FIELDS) {
     if (!payload[field]) return `Campo obrigatório ausente: ${field}`;
@@ -79,6 +81,14 @@ function validatePayload(payload) {
   if (!Number.isFinite(payload.amount) || payload.amount <= 0) {
     return 'Valor inválido.';
   }
+  const name = String(payload.customer_name || '').trim();
+  if (name.length < 2) return 'Nome do cliente inválido ou ausente.';
+  const email = String(payload.customer_email || '').trim().toLowerCase();
+  if (!EMAIL_RE.test(email) || email === 'seu@email.com') return 'E-mail do cliente inválido ou ausente.';
+  const phoneDigits = String(payload.customer_phone || '').replace(/\D/g, '');
+  const phone =
+    phoneDigits.startsWith('55') && phoneDigits.length > 11 ? phoneDigits.slice(2) : phoneDigits;
+  if (!/^\d{10,11}$/.test(phone)) return 'Telefone do cliente inválido ou ausente.';
   return null;
 }
 
