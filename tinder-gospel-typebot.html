@@ -718,6 +718,7 @@ let leadNome = '';
 let leadEmail = '';
 let leadPhone = '';
 let pixOrderCreated = false;
+let checkoutOrderInFlight = false;
 let selectedPaymentMethod = '';
 const z = window.Zod;
 let trackingParams = {};
@@ -969,6 +970,112 @@ function getOrderPayload(status = 'created') {
   };
 }
 
+function buildCheckoutUrlWithLead() {
+  try {
+    const baseWithTracking = appendTrackingParams(CHECKOUT);
+    const parsed = new URL(baseWithTracking);
+    parsed.searchParams.set('customer_name', String(leadNome || '').trim());
+    parsed.searchParams.set('customer_email', String(leadEmail || '').trim().toLowerCase());
+    parsed.searchParams.set('customer_phone', normalizePhoneDigits(leadPhone));
+    return parsed.toString();
+  } catch {
+    return appendTrackingParams(CHECKOUT);
+  }
+}
+
+async function postOrderPayload(orderPayload) {
+  const apiUrl =
+    window.location.protocol === 'file:' ? null : `${window.location.origin}${ORDER_API_PATH}`;
+  if (!apiUrl) {
+    throw new Error('API indisponível em file://.');
+  }
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(orderPayload)
+  });
+  if (!response.ok) {
+    let details = '';
+    try {
+      const body = await response.json();
+      details = body?.error ? ` - ${body.error}` : '';
+    } catch {}
+    throw new Error(`HTTP ${response.status}${details}`);
+  }
+  return response.json();
+}
+
+async function persistOrderBeforeCheckout() {
+  if (!hasCompleteLeadForOrder()) {
+    console.warn('Ordem não criada: nome, e-mail e WhatsApp válidos são obrigatórios.');
+    return { ok: false, error: 'lead_incomplete' };
+  }
+  try {
+    await postOrderPayload(getOrderPayload('created'));
+    return { ok: true };
+  } catch (error) {
+    console.error('Erro ao criar ordem antes do checkout:', error);
+    return { ok: false, error: error?.message || String(error) };
+  }
+}
+
+async function runCheckoutOpenFlow() {
+  const r = await persistOrderBeforeCheckout();
+  if (!r.ok) {
+    await send('Não consegui registrar seu pedido agora. Confira sua conexão e tente de novo.', true);
+    return false;
+  }
+  selectedPaymentMethod = 'checkout';
+  openExternalUrl(buildCheckoutUrlWithLead(), null);
+  return true;
+}
+
+function showPaymentPrimaryButtons() {
+  showButtons([
+    {
+      label: '💳 Abrir pagamento',
+      cta: true,
+      action: async () => {
+        if (checkoutOrderInFlight) return;
+        checkoutOrderInFlight = true;
+        try {
+          const ok = await runCheckoutOpenFlow();
+          if (!ok) {
+            showPaymentPrimaryButtons();
+            return;
+          }
+          await flowAposCheckout();
+        } finally {
+          checkoutOrderInFlight = false;
+        }
+      }
+    },
+    { label: '❓ Tenho uma dúvida', action: () => flowDuvidas() }
+  ]);
+}
+
+function showPostCheckoutButtons() {
+  showButtons([
+    { label: '✅ Já paguei', action: () => flowJaPagou() },
+    {
+      label: '💳 Abrir link de pagamento de novo',
+      cta: true,
+      action: async () => {
+        if (checkoutOrderInFlight) return;
+        checkoutOrderInFlight = true;
+        try {
+          const ok = await runCheckoutOpenFlow();
+          if (!ok) showPostCheckoutButtons();
+        } finally {
+          checkoutOrderInFlight = false;
+        }
+      }
+    },
+    { label: '💬 Falar com suporte', support: true, href: SUPORTE }
+  ]);
+}
+
 function sendInitiateCheckoutEvent() {
   const payload = {
     checkout_id: CHECKOUT_ID,
@@ -1015,35 +1122,16 @@ async function createDirectPixOrder() {
     return;
   }
   if (pixOrderCreated) return;
-  const orderPayload = getOrderPayload('created');
-  const apiUrl = (() => {
-    if (window.location.protocol === 'file:') return null;
-    return `${window.location.origin}${ORDER_API_PATH}`;
-  })();
 
-  if (!apiUrl) {
+  if (window.location.protocol === 'file:') {
     console.warn('Pix direto: API não chamada porque o HTML está em file://. Rode em servidor (Vercel/vercel dev).');
     return;
   }
 
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderPayload)
-    });
-    if (!response.ok) {
-      let details = '';
-      try {
-        const body = await response.json();
-        details = body?.error ? ` - ${body.error}` : '';
-      } catch {}
-      throw new Error(`HTTP ${response.status}${details}`);
-    }
+    await postOrderPayload(getOrderPayload('created'));
     pixOrderCreated = true;
   } catch (error) {
-    // Permite nova tentativa se a requisição falhar
     pixOrderCreated = false;
     console.error('Erro ao criar ordem Pix direto:', error);
   }
@@ -1214,14 +1302,20 @@ function showButtons(items) {
       if (item.action) {
         el.addEventListener('click', () => {
           if (typeof el.blur === 'function') el.blur();
+          const runAction = async () => {
+            try {
+              const result = item.action();
+              if (result && typeof result.then === 'function') await result;
+            } catch (err) {
+              console.error(err);
+            }
+          };
           if (item.href) {
-            // Para itens com href + action, deixamos a navegacao acontecer
-            // primeiro (acima) e disparamos a acao em sequencia.
-            setTimeout(() => item.action(), 800);
+            setTimeout(runAction, 800);
           } else {
             clearButtons();
             addUserBubble(item.label);
-            setTimeout(() => item.action(), 400);
+            setTimeout(runAction, 400);
           }
         });
       }
@@ -1574,29 +1668,15 @@ async function flowPagamento() {
   selectedPaymentMethod = '';
   sendInitiateCheckoutEvent();
   await send('Ótimo! Agora é só garantir seu acesso.', true);
-  await send('Como você prefere pagar?');
-  showButtons([
-    { label: '💳 Finalizar pagamento (Pix ou cartão)', cta: true, href: CHECKOUT, action: () => {
-        selectedPaymentMethod = 'checkout';
-        flowAposCheckout();
-    }},
-    { label: '🏦 Pagar por Pix direto', action: () => {
-        selectedPaymentMethod = 'pix_direto';
-        flowPixDireto();
-    }},
-    { label: '❓ Tenho uma dúvida', action: () => flowDuvidas() },
-  ]);
+  await send('Toque abaixo para abrir o pagamento seguro — Pix ou cartão.', true);
+  showPaymentPrimaryButtons();
 }
 
 async function flowAposCheckout() {
   clearButtons();
   await send('Perfeito! O link de pagamento foi aberto.', true);
-  await send('Se tiver dificuldade pra gerar o Pix pelo checkout, pode me chamar aqui.');
-  showButtons([
-    { label: '✅ Já paguei', action: () => flowJaPagou() },
-    { label: '🏦 Prefiro Pix direto', action: () => flowPixDireto() },
-    { label: '💬 Falar com suporte', support: true, href: SUPORTE },
-  ]);
+  await send('Lá você pode pagar com Pix ou cartão. Se o link não abrir, use o botão abaixo.');
+  showPostCheckoutButtons();
 }
 
 // PIX DIRETO
@@ -1678,23 +1758,16 @@ async function flowDuvidaConfiavel() {
   await send('O acesso é liberado após a confirmação do pagamento pela equipe.');
   showButtons([
     { label: '✅ Quero entrar', action: () => flowPagamento() },
-    { label: '🏦 Pagar por Pix', action: () => flowPixDireto() },
-    { label: '❓ Tenho outra dúvida', action: () => flowDuvidas() },
+    { label: '❓ Tenho outra dúvida', action: () => flowDuvidas() }
   ]);
 }
 
 async function flowDuvidaBoleto() {
   await send('No momento não trabalhamos com boleto.', true);
-  await send('Mas é bem simples — você pode pagar por Pix ou cartão!');
+  await send('Mas é bem simples — você pode pagar por Pix ou cartão pelo link seguro!');
   showButtons([
-    { label: '🏦 Pagar por Pix', action: () => {
-        selectedPaymentMethod = 'pix_direto';
-        flowPixDireto();
-    }},
-    { label: '💳 Pagar no cartão', href: CHECKOUT, action: () => {
-        selectedPaymentMethod = 'checkout';
-        flowAposCheckout();
-    }},
+    { label: '💳 Ir para o pagamento', cta: true, action: () => flowPagamento() },
+    { label: '❓ Tenho outra dúvida', action: () => flowDuvidas() }
   ]);
 }
 
