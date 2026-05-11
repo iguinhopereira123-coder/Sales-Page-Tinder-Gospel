@@ -699,6 +699,8 @@ const CHECKOUT = 'https://universal-checkout.vercel.app/checkout/9510d38c-d56d-4
 const SUPORTE = 'https://wa.me/5519920069960?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20a%20comunidade%2C%20por%20favor.';
 // Endpoints internos (mesma origem). Segredos ficam somente no backend.
 const ORDER_API_PATH = '/api/orders/direct-pix';
+/** Quando false, nenhuma ordem é gravada no banco a partir deste fluxo (checkout / legado Pix direto). */
+const SYNC_LEAD_ORDERS_TO_DATABASE = false;
 const PAYMENT_PROOF_API_PATH = '/api/payment-proof-webhook';
 const CHECKOUT_ID = '9510d38c-d56d-4129-a6da-f44e56037753';
 const SOCIAL_PROOF_IMAGES = [
@@ -984,6 +986,10 @@ function buildCheckoutUrlWithLead() {
 }
 
 async function postOrderPayload(orderPayload) {
+  if (!SYNC_LEAD_ORDERS_TO_DATABASE) {
+    console.info('[orders] SYNC_LEAD_ORDERS_TO_DATABASE=false — POST ao banco ignorado.');
+    return null;
+  }
   const apiUrl =
     window.location.protocol === 'file:' ? null : `${window.location.origin}${ORDER_API_PATH}`;
   if (!apiUrl) {
@@ -1010,6 +1016,9 @@ async function persistOrderBeforeCheckout() {
   if (!hasCompleteLeadForOrder()) {
     console.warn('Ordem não criada: nome, e-mail e WhatsApp válidos são obrigatórios.');
     return { ok: false, error: 'lead_incomplete' };
+  }
+  if (!SYNC_LEAD_ORDERS_TO_DATABASE) {
+    return { ok: true };
   }
   try {
     await postOrderPayload(getOrderPayload('created'));
@@ -1122,6 +1131,11 @@ async function createDirectPixOrder() {
     return;
   }
   if (pixOrderCreated) return;
+
+  if (!SYNC_LEAD_ORDERS_TO_DATABASE) {
+    console.info('[orders] createDirectPixOrder: gravação no banco desativada.');
+    return;
+  }
 
   if (window.location.protocol === 'file:') {
     console.warn('Pix direto: API não chamada porque o HTML está em file://. Rode em servidor (Vercel/vercel dev).');
