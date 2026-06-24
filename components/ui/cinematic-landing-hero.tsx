@@ -432,7 +432,9 @@ export function CinematicHero({
       const heroDriftY = isMobile ? 26 : 38;
       const STEPS = 4;
       const stepDuration = 1;
-      const stepScrollPercent = (STEPS - 1) * 100;
+      const stepScrollPercent = (STEPS - 1) * 120;
+      const stepTransitionDuration = isMobile ? 1.15 : 1.35;
+      const smoothEase = "power2.inOut";
 
       const scrollTl = gsap.timeline({
         scrollTrigger: {
@@ -440,7 +442,7 @@ export function CinematicHero({
           start: "top top",
           end: `+=${stepScrollPercent}%`,
           pin: true,
-          scrub: 0.05,
+          scrub: 0.9,
           anticipatePin: 1,
           invalidateOnRefresh: true,
         },
@@ -456,33 +458,33 @@ export function CinematicHero({
             clipPath: "inset(0 0% 0 0)",
             filter: "blur(0px)",
             x: 0,
-            ease: "power2.out",
-            duration: 0.28,
+            ease: smoothEase,
+            duration: 0.38,
           },
-          0.05
+          0.08
         )
-        .to(".hero-headline", { scale: 1.02, ease: "power2.out", duration: 0.18 }, 0.28)
-        .to(".hero-text-wrapper", { y: heroDriftY, ease: "power2.out", duration: 0.2 }, 0.48)
-        .to(".hero-text-wrapper", { y: 0, ease: "power2.inOut", duration: 0.2 }, 0.78)
+        .to(".hero-headline", { scale: 1.02, ease: smoothEase, duration: 0.28 }, 0.38)
+        .to(".hero-text-wrapper", { y: heroDriftY, ease: smoothEase, duration: 0.3 }, 0.58)
+        .to(".hero-text-wrapper", { y: 0, ease: smoothEase, duration: 0.32 }, 0.82)
         .addLabel("reveal", stepDuration)
 
-        // Etapa 2 — card + celular
+        // Etapa 2 — card + celular (distribuído ao longo do segmento)
         .to(
           [".hero-text-wrapper", ".bg-grid-theme"],
-          { scale: 1.12, filter: "blur(16px)", opacity: 0.25, ease: "power2.inOut", duration: 0.45 },
-          stepDuration
+          { scale: 1.12, filter: "blur(16px)", opacity: 0.25, ease: smoothEase, duration: 0.55 },
+          stepDuration + 0.05
         )
-        .to(".main-card", { y: 0, ease: "power3.inOut", duration: 0.55 }, stepDuration)
+        .to(".main-card", { y: 0, ease: smoothEase, duration: 0.62 }, stepDuration + 0.05)
         .to(
           ".main-card",
           {
             width: "100%",
             height: "100%",
             borderRadius: "0px",
-            ease: "power3.inOut",
-            duration: 0.45,
+            ease: smoothEase,
+            duration: 0.52,
           },
-          stepDuration + 0.2
+          stepDuration + 0.35
         )
         .fromTo(
           ".mockup-scroll-wrapper",
@@ -494,22 +496,26 @@ export function CinematicHero({
             rotationY: 0,
             autoAlpha: 1,
             scale: 1,
-            ease: "expo.out",
-            duration: 0.65,
+            ease: smoothEase,
+            duration: 0.72,
           },
-          stepDuration + 0.15
+          stepDuration + 0.28
         )
         .fromTo(
           ".phone-widget",
           { y: 32, autoAlpha: 0, scale: 0.94 },
-          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.06, ease: "back.out(1.2)", duration: 0.5 },
-          stepDuration + 0.45
+          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.1, ease: smoothEase, duration: 0.55 },
+          stepDuration + 0.62
         )
-        .to(".progress-ring", { strokeDashoffset: 60, duration: 0.55, ease: "power3.inOut" }, stepDuration + 0.55)
+        .to(
+          ".progress-ring",
+          { strokeDashoffset: 60, duration: 0.62, ease: smoothEase },
+          stepDuration + 0.78
+        )
         .to(
           ".counter-val",
-          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 0.55, ease: "expo.out" },
-          stepDuration + 0.55
+          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 0.62, ease: smoothEase },
+          stepDuration + 0.78
         )
         .fromTo(
           ".floating-badge",
@@ -519,29 +525,33 @@ export function CinematicHero({
             autoAlpha: 1,
             scale: 1,
             rotationZ: 0,
-            ease: "back.out(1.4)",
-            duration: 0.45,
-            stagger: 0.1,
+            ease: smoothEase,
+            duration: 0.5,
+            stagger: 0.14,
           },
-          stepDuration + 0.65
+          stepDuration + 0.88
         )
         .fromTo(
           ".card-left-text",
           { x: -36, autoAlpha: 0 },
-          { x: 0, autoAlpha: 1, ease: "power4.out", duration: 0.4 },
-          stepDuration + 0.78
+          { x: 0, autoAlpha: 1, ease: smoothEase, duration: 0.48 },
+          stepDuration + 1.02
         )
         .fromTo(
           ".card-right-text",
           { x: 36, autoAlpha: 0, scale: 0.9 },
-          { x: 0, autoAlpha: 1, scale: 1, ease: "expo.out", duration: 0.4 },
-          stepDuration + 0.78
+          { x: 0, autoAlpha: 1, scale: 1, ease: smoothEase, duration: 0.48 },
+          stepDuration + 1.02
         )
         .addLabel("card", stepDuration * 2)
 
         // Etapa 3 — CTA de pagamento
-        .set(".hero-text-wrapper", { autoAlpha: 0 }, stepDuration * 2)
-        .set(".cta-wrapper", { autoAlpha: 1 }, stepDuration * 2)
+        .to(".hero-text-wrapper", { autoAlpha: 0, ease: smoothEase, duration: 0.4 }, stepDuration * 2 + 0.05)
+        .to(
+          ".cta-wrapper",
+          { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: smoothEase, duration: 0.55 },
+          stepDuration * 2 + 0.12
+        )
         .to(
           [".mockup-scroll-wrapper", ".floating-badge", ".card-left-text", ".card-right-text"],
           {
@@ -549,11 +559,11 @@ export function CinematicHero({
             y: -28,
             z: -160,
             autoAlpha: 0,
-            ease: "power3.in",
-            duration: 0.55,
-            stagger: 0.04,
+            ease: smoothEase,
+            duration: 0.62,
+            stagger: 0.06,
           },
-          stepDuration * 2 + 0.05
+          stepDuration * 2 + 0.2
         )
         .to(
           ".main-card",
@@ -561,20 +571,15 @@ export function CinematicHero({
             width: isMobile ? "92vw" : "85vw",
             height: isMobile ? "92vh" : "85vh",
             borderRadius: isMobile ? "32px" : "40px",
-            ease: "expo.inOut",
-            duration: 0.65,
+            ease: smoothEase,
+            duration: 0.72,
           },
-          stepDuration * 2 + 0.05
-        )
-        .to(
-          ".cta-wrapper",
-          { scale: 1, filter: "blur(0px)", ease: "expo.inOut", duration: 0.65 },
-          stepDuration * 2 + 0.05
+          stepDuration * 2 + 0.2
         )
         .to(
           ".main-card",
-          { y: -window.innerHeight - 300, ease: "power3.in", duration: 0.55 },
-          stepDuration * 2 + 0.55
+          { y: -window.innerHeight - 300, ease: smoothEase, duration: 0.65 },
+          stepDuration * 2 + 0.72
         )
         .addLabel("cta", stepDuration * 3);
 
@@ -599,8 +604,8 @@ export function CinematicHero({
 
         gsap.to(window, {
           scrollTo: scrollYForStep(clamped),
-          duration: 0.52,
-          ease: "power2.inOut",
+          duration: stepTransitionDuration,
+          ease: "power3.inOut",
           overwrite: "auto",
           onComplete: () => {
             isAnimatingRef.current = false;
@@ -628,7 +633,7 @@ export function CinematicHero({
         clearTimeout(wheelResetTimer);
         wheelResetTimer = setTimeout(() => {
           wheelDelta = 0;
-        }, 140);
+        }, 220);
 
         if (Math.abs(wheelDelta) < wheelThreshold) return;
 
@@ -685,7 +690,7 @@ export function CinematicHero({
           } else {
             currentStepRef.current = nearest;
           }
-        }, 90);
+        }, 160);
       };
 
       syncStepFromScroll();
