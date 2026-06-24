@@ -451,15 +451,20 @@ export function CinematicHero({
           0.12
         )
         .to(".hero-headline", { scale: 1.015, ease: smoothEase, duration: 0.42 }, 0.52)
+        .to(
+          [".hero-text-wrapper", ".text-days", ".text-track"],
+          { filter: "blur(0px)", opacity: 1, scale: 1, ease: "none", duration: 0.01 },
+          0.94
+        )
         .addLabel("reveal", stepDuration)
 
-        // Etapa 2 — card + celular
+        // Etapa 2 — card + celular (blur do hero só a partir da etapa 2)
         .to(
           [".hero-text-wrapper", ".bg-grid-theme"],
           { scale: 1.1, filter: "blur(14px)", opacity: 0.28, ease: smoothEase, duration: 0.82 },
-          stepDuration + 0.08
+          stepDuration
         )
-        .to(".main-card", { y: 0, ease: smoothEase, duration: 0.92 }, stepDuration + 0.08)
+        .to(".main-card", { y: 0, ease: smoothEase, duration: 0.92 }, stepDuration)
         .to(
           ".main-card",
           {
@@ -528,7 +533,7 @@ export function CinematicHero({
           { x: 0, autoAlpha: 1, scale: 1, ease: smoothEase, duration: 0.68 },
           stepDuration + 1.22
         )
-        .addLabel("card", stepDuration * 2)
+        .addLabel("card", stepDuration * 2 + 1.05)
 
         // Etapa 3 — CTA de pagamento
         .to(".hero-text-wrapper", { autoAlpha: 0, ease: smoothEase, duration: 0.62 }, stepDuration * 2 + 0.08)
@@ -566,7 +571,9 @@ export function CinematicHero({
           { y: -window.innerHeight - 300, ease: smoothEase, duration: 0.88 },
           stepDuration * 2 + 0.88
         )
-        .addLabel("cta", stepDuration * 3);
+        .addLabel("cta", ">");
+
+      const stepLabelNames = ["hero", "reveal", "card", "cta"] as const;
 
       const st = ScrollTrigger.create({
         trigger: containerRef.current,
@@ -587,7 +594,12 @@ export function CinematicHero({
         window.scrollTo(0, st.start + clampedProgress * (st.end - st.start));
       };
 
-      const progressForStep = (step: number) => step / (STEPS - 1);
+      const progressForStep = (step: number) => {
+        const clamped = Math.max(0, Math.min(STEPS - 1, step));
+        if (clamped === STEPS - 1) return 1;
+        const labelTime = scrollTl.labels[stepLabelNames[clamped]] ?? 0;
+        return labelTime / scrollTl.duration();
+      };
 
       const goToStep = (step: number, immediate = false) => {
         const clamped = Math.max(0, Math.min(STEPS - 1, step));
