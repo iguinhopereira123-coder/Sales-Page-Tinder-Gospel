@@ -429,16 +429,28 @@ export function CinematicHero({
       });
 
       const STEPS = 4;
-      const stepDuration = 1;
+      const SEGMENTS = STEPS - 1;
+      const segmentDuration = 1;
       const stepTransitionDuration = isMobile ? 1.9 : 2.2;
       const smoothEase = "sine.inOut";
+
+      // Mapeamento etapas ⟷ scroll ⟷ timeline (sincronizado)
+      // 4 etapas, 3 rolagens (1 viewport cada). Progresso uniforme: step / SEGMENTS
+      // Timeline em 3 blocos iguais de segmentDuration:
+      //   [0 → 1] revelação   |   [1 → 2] card/celular   |   [2 → 3] CTA
+      const tHero = 0;
+      const tReveal = segmentDuration;
+      const tCard = segmentDuration * 2;
+      const tCta = segmentDuration * SEGMENTS;
+
+      const STEP_PROGRESS = [0, 1 / SEGMENTS, 2 / SEGMENTS, 1] as const;
 
       const scrollTl = gsap.timeline({ paused: true });
 
       scrollTl
-        .addLabel("hero", 0)
+        .addLabel("hero", tHero)
 
-        // Etapa 1 — revela "com a mesma fé." (sem deslocamento vertical)
+        // ── Segmento 0 → etapa 1: revela "com a mesma fé." ──
         .to(
           ".text-days",
           {
@@ -446,25 +458,25 @@ export function CinematicHero({
             filter: "blur(0px)",
             x: 0,
             ease: smoothEase,
-            duration: 0.58,
+            duration: 0.55,
           },
-          0.12
+          tHero + 0.1
         )
-        .to(".hero-headline", { scale: 1.015, ease: smoothEase, duration: 0.42 }, 0.52)
+        .to(".hero-headline", { scale: 1.015, ease: smoothEase, duration: 0.38 }, tHero + 0.48)
         .to(
           [".hero-text-wrapper", ".text-days", ".text-track"],
           { filter: "blur(0px)", opacity: 1, scale: 1, ease: "none", duration: 0.01 },
-          0.94
+          tHero + 0.9
         )
-        .addLabel("reveal", stepDuration)
+        .addLabel("reveal", tReveal)
 
-        // Etapa 2 — card + celular (blur do hero só a partir da etapa 2)
+        // ── Segmento 1 → etapa 2: card + celular ──
         .to(
           [".hero-text-wrapper", ".bg-grid-theme"],
-          { scale: 1.1, filter: "blur(14px)", opacity: 0.28, ease: smoothEase, duration: 0.82 },
-          stepDuration
+          { scale: 1.1, filter: "blur(14px)", opacity: 0.28, ease: smoothEase, duration: 0.48 },
+          tReveal
         )
-        .to(".main-card", { y: 0, ease: smoothEase, duration: 0.92 }, stepDuration)
+        .to(".main-card", { y: 0, ease: smoothEase, duration: 0.55 }, tReveal)
         .to(
           ".main-card",
           {
@@ -472,9 +484,9 @@ export function CinematicHero({
             height: "100%",
             borderRadius: "0px",
             ease: smoothEase,
-            duration: 0.78,
+            duration: 0.42,
           },
-          stepDuration + 0.42
+          tReveal + 0.18
         )
         .fromTo(
           ".mockup-scroll-wrapper",
@@ -487,25 +499,25 @@ export function CinematicHero({
             autoAlpha: 1,
             scale: 1,
             ease: smoothEase,
-            duration: 1.05,
+            duration: 0.58,
           },
-          stepDuration + 0.35
+          tReveal + 0.12
         )
         .fromTo(
           ".phone-widget",
           { y: 32, autoAlpha: 0, scale: 0.94 },
-          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.14, ease: smoothEase, duration: 0.78 },
-          stepDuration + 0.78
+          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.08, ease: smoothEase, duration: 0.42 },
+          tReveal + 0.38
         )
         .to(
           ".progress-ring",
-          { strokeDashoffset: 60, duration: 0.88, ease: smoothEase },
-          stepDuration + 0.95
+          { strokeDashoffset: 60, duration: 0.42, ease: smoothEase },
+          tReveal + 0.48
         )
         .to(
           ".counter-val",
-          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 0.88, ease: smoothEase },
-          stepDuration + 0.95
+          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 0.42, ease: smoothEase },
+          tReveal + 0.48
         )
         .fromTo(
           ".floating-badge",
@@ -516,31 +528,31 @@ export function CinematicHero({
             scale: 1,
             rotationZ: 0,
             ease: smoothEase,
-            duration: 0.72,
-            stagger: 0.18,
+            duration: 0.38,
+            stagger: 0.1,
           },
-          stepDuration + 1.08
+          tReveal + 0.55
         )
         .fromTo(
           ".card-left-text",
           { x: -36, autoAlpha: 0 },
-          { x: 0, autoAlpha: 1, ease: smoothEase, duration: 0.68 },
-          stepDuration + 1.22
+          { x: 0, autoAlpha: 1, ease: smoothEase, duration: 0.35 },
+          tReveal + 0.62
         )
         .fromTo(
           ".card-right-text",
           { x: 36, autoAlpha: 0, scale: 0.9 },
-          { x: 0, autoAlpha: 1, scale: 1, ease: smoothEase, duration: 0.68 },
-          stepDuration + 1.22
+          { x: 0, autoAlpha: 1, scale: 1, ease: smoothEase, duration: 0.35 },
+          tReveal + 0.62
         )
-        .addLabel("card", stepDuration * 2 + 1.05)
+        .addLabel("card", tCard)
 
-        // Etapa 3 — CTA de pagamento
-        .to(".hero-text-wrapper", { autoAlpha: 0, ease: smoothEase, duration: 0.62 }, stepDuration * 2 + 0.08)
+        // ── Segmento 2 → etapa 3: CTA de pagamento ──
+        .to(".hero-text-wrapper", { autoAlpha: 0, ease: smoothEase, duration: 0.35 }, tCard + 0.05)
         .to(
           ".cta-wrapper",
-          { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: smoothEase, duration: 0.82 },
-          stepDuration * 2 + 0.18
+          { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: smoothEase, duration: 0.45 },
+          tCard + 0.1
         )
         .to(
           [".mockup-scroll-wrapper", ".floating-badge", ".card-left-text", ".card-right-text"],
@@ -550,10 +562,10 @@ export function CinematicHero({
             z: -160,
             autoAlpha: 0,
             ease: smoothEase,
-            duration: 0.88,
-            stagger: 0.1,
+            duration: 0.48,
+            stagger: 0.08,
           },
-          stepDuration * 2 + 0.28
+          tCard + 0.15
         )
         .to(
           ".main-card",
@@ -562,23 +574,21 @@ export function CinematicHero({
             height: isMobile ? "92vh" : "85vh",
             borderRadius: isMobile ? "32px" : "40px",
             ease: smoothEase,
-            duration: 0.95,
+            duration: 0.5,
           },
-          stepDuration * 2 + 0.28
+          tCard + 0.15
         )
         .to(
           ".main-card",
-          { y: -window.innerHeight - 300, ease: smoothEase, duration: 0.88 },
-          stepDuration * 2 + 0.88
+          { y: -window.innerHeight - 300, ease: smoothEase, duration: 0.42 },
+          tCard + 0.55
         )
-        .addLabel("cta", ">");
-
-      const stepLabelNames = ["hero", "reveal", "card", "cta"] as const;
+        .addLabel("cta", tCta);
 
       const st = ScrollTrigger.create({
         trigger: containerRef.current,
         start: "top top",
-        end: () => `+=${(STEPS - 1) * window.innerHeight}`,
+        end: () => `+=${SEGMENTS * window.innerHeight}`,
         pin: true,
         pinSpacing: true,
         anticipatePin: 1,
@@ -588,17 +598,18 @@ export function CinematicHero({
       const stepDriver = { progress: 0 };
       let stepAnimation: gsap.core.Tween | null = null;
 
+      const progressForStep = (step: number) => {
+        const clamped = Math.max(0, Math.min(STEPS - 1, step));
+        return STEP_PROGRESS[clamped];
+      };
+
+      const scrollYForProgress = (progress: number) =>
+        st.start + progress * (st.end - st.start);
+
       const applyProgress = (progress: number) => {
         const clampedProgress = gsap.utils.clamp(0, 1, progress);
         scrollTl.progress(clampedProgress);
-        window.scrollTo(0, st.start + clampedProgress * (st.end - st.start));
-      };
-
-      const progressForStep = (step: number) => {
-        const clamped = Math.max(0, Math.min(STEPS - 1, step));
-        if (clamped === STEPS - 1) return 1;
-        const labelTime = scrollTl.labels[stepLabelNames[clamped]] ?? 0;
-        return labelTime / scrollTl.duration();
+        window.scrollTo(0, scrollYForProgress(clampedProgress));
       };
 
       const goToStep = (step: number, immediate = false) => {
