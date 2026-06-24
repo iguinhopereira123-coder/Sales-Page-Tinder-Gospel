@@ -27,3 +27,5 @@ dist/
 build/
 .cache/
 coverage/
+.next/
+out/
