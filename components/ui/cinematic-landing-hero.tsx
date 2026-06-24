@@ -3,12 +3,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { cn } from "@/lib/utils";
 import { landingCopy } from "@/lib/copy/landing";
 
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+  gsap.registerPlugin(ScrollTrigger);
 }
 
 const INJECTED_STYLES = `
@@ -432,21 +431,10 @@ export function CinematicHero({
       const heroDriftY = isMobile ? 26 : 38;
       const STEPS = 4;
       const stepDuration = 1;
-      const stepScrollPercent = (STEPS - 1) * 120;
-      const stepTransitionDuration = isMobile ? 1.15 : 1.35;
+      const stepTransitionDuration = isMobile ? 1.2 : 1.4;
       const smoothEase = "power2.inOut";
 
-      const scrollTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top top",
-          end: `+=${stepScrollPercent}%`,
-          pin: true,
-          scrub: 0.9,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-        },
-      });
+      const scrollTl = gsap.timeline({ paused: true });
 
       scrollTl
         .addLabel("hero", 0)
@@ -583,70 +571,82 @@ export function CinematicHero({
         )
         .addLabel("cta", stepDuration * 3);
 
-      const st = scrollTl.scrollTrigger;
-      if (!st) return;
+      const st = ScrollTrigger.create({
+        trigger: containerRef.current,
+        start: "top top",
+        end: () => `+=${(STEPS - 1) * window.innerHeight}`,
+        pin: true,
+        pinSpacing: true,
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+      });
 
-      const stepProgress = (step: number) => step / (STEPS - 1);
-      const scrollYForStep = (step: number) => st.start + stepProgress(step) * (st.end - st.start);
+      const stepDriver = { progress: 0 };
+      let stepAnimation: gsap.core.Tween | null = null;
 
-      const syncStepFromScroll = () => {
-        currentStepRef.current = Math.round(st.progress * (STEPS - 1));
+      const applyProgress = (progress: number) => {
+        const clampedProgress = gsap.utils.clamp(0, 1, progress);
+        scrollTl.progress(clampedProgress);
+        window.scrollTo(0, st.start + clampedProgress * (st.end - st.start));
       };
 
-      const goToStep = (step: number) => {
+      const progressForStep = (step: number) => step / (STEPS - 1);
+
+      const goToStep = (step: number, immediate = false) => {
         const clamped = Math.max(0, Math.min(STEPS - 1, step));
-        if (isAnimatingRef.current || clamped === currentStepRef.current) return;
+        if (!immediate && isAnimatingRef.current) return;
+        if (!immediate && clamped === currentStepRef.current) return;
 
-        isAnimatingRef.current = true;
+        stepAnimation?.kill();
         currentStepRef.current = clamped;
-
         if (clamped > 0) setShowScrollHint(false);
 
-        gsap.to(window, {
-          scrollTo: scrollYForStep(clamped),
+        const targetProgress = progressForStep(clamped);
+
+        if (immediate) {
+          stepDriver.progress = targetProgress;
+          applyProgress(targetProgress);
+          isAnimatingRef.current = false;
+          return;
+        }
+
+        isAnimatingRef.current = true;
+        stepDriver.progress = scrollTl.progress();
+
+        stepAnimation = gsap.to(stepDriver, {
+          progress: targetProgress,
           duration: stepTransitionDuration,
           ease: "power3.inOut",
           overwrite: "auto",
+          onUpdate: () => applyProgress(stepDriver.progress),
           onComplete: () => {
+            applyProgress(targetProgress);
             isAnimatingRef.current = false;
-            syncStepFromScroll();
+            stepAnimation = null;
           },
         });
       };
 
-      const wheelThreshold = isMobile ? 55 : 90;
-      let wheelDelta = 0;
-      let wheelResetTimer: ReturnType<typeof setTimeout> | undefined;
-      let touchStartY = 0;
-
-      const queueWheelStep = (direction: 1 | -1) => {
+      const changeStep = (direction: 1 | -1) => {
+        if (!st.isActive || isAnimatingRef.current) return false;
         const next = currentStepRef.current + direction;
         if (next < 0 || next >= STEPS) return false;
         goToStep(next);
         return true;
       };
 
+      let touchStartY = 0;
+
       const onWheel = (event: WheelEvent) => {
-        if (!st.isActive) return;
+        if (!st.isActive || isAnimatingRef.current) return;
+        if (Math.abs(event.deltaY) < 12) return;
 
-        wheelDelta += event.deltaY;
-        clearTimeout(wheelResetTimer);
-        wheelResetTimer = setTimeout(() => {
-          wheelDelta = 0;
-        }, 220);
+        const direction: 1 | -1 = event.deltaY > 0 ? 1 : -1;
+        const next = currentStepRef.current + direction;
+        if (next < 0 || next >= STEPS) return;
 
-        if (Math.abs(wheelDelta) < wheelThreshold) return;
-
-        const direction: 1 | -1 = wheelDelta > 0 ? 1 : -1;
-        wheelDelta = 0;
-
-        if (isAnimatingRef.current) {
-          event.preventDefault();
-          return;
-        }
-
-        const handled = queueWheelStep(direction);
-        if (handled) event.preventDefault();
+        event.preventDefault();
+        changeStep(direction);
       };
 
       const onTouchStart = (event: TouchEvent) => {
@@ -658,57 +658,47 @@ export function CinematicHero({
 
         const touchEndY = event.changedTouches[0]?.clientY ?? touchStartY;
         const delta = touchStartY - touchEndY;
-        const touchThreshold = isMobile ? 48 : 64;
-
-        if (Math.abs(delta) < touchThreshold) return;
+        if (Math.abs(delta) < 52) return;
 
         const direction: 1 | -1 = delta > 0 ? 1 : -1;
-        queueWheelStep(direction);
+        const next = currentStepRef.current + direction;
+        if (next < 0 || next >= STEPS) return;
+
+        changeStep(direction);
       };
 
       const onKeyDown = (event: KeyboardEvent) => {
         if (!st.isActive || isAnimatingRef.current) return;
         if (event.key === "ArrowDown" || event.key === "PageDown") {
           event.preventDefault();
-          queueWheelStep(1);
+          changeStep(1);
         } else if (event.key === "ArrowUp" || event.key === "PageUp") {
           event.preventDefault();
-          queueWheelStep(-1);
+          changeStep(-1);
         }
       };
 
-      let scrollSnapTimer: ReturnType<typeof setTimeout> | undefined;
-      const onScrollSnap = () => {
-        if (isAnimatingRef.current) return;
-        clearTimeout(scrollSnapTimer);
-        scrollSnapTimer = setTimeout(() => {
-          if (!st.isActive || isAnimatingRef.current) return;
-          const nearest = Math.round(st.progress * (STEPS - 1));
-          const targetProgress = stepProgress(nearest);
-          if (Math.abs(st.progress - targetProgress) > 0.04) {
-            goToStep(nearest);
-          } else {
-            currentStepRef.current = nearest;
-          }
-        }, 160);
+      const onResize = () => {
+        ScrollTrigger.refresh();
+        goToStep(currentStepRef.current, true);
       };
 
-      syncStepFromScroll();
+      goToStep(0, true);
 
       window.addEventListener("wheel", onWheel, { passive: false });
       window.addEventListener("touchstart", onTouchStart, { passive: true });
       window.addEventListener("touchend", onTouchEnd, { passive: true });
       window.addEventListener("keydown", onKeyDown);
-      window.addEventListener("scroll", onScrollSnap, { passive: true });
+      window.addEventListener("resize", onResize);
 
       removeStepNav = () => {
-        clearTimeout(wheelResetTimer);
-        clearTimeout(scrollSnapTimer);
+        stepAnimation?.kill();
         window.removeEventListener("wheel", onWheel);
         window.removeEventListener("touchstart", onTouchStart);
         window.removeEventListener("touchend", onTouchEnd);
         window.removeEventListener("keydown", onKeyDown);
-        window.removeEventListener("scroll", onScrollSnap);
+        window.removeEventListener("resize", onResize);
+        st.kill();
       };
     }, containerRef);
 

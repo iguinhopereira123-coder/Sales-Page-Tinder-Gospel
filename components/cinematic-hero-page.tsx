@@ -23,7 +23,7 @@ export function CinematicHeroPage() {
   return (
     <>
       <InAppBrowserUI />
-      <div className="overflow-x-hidden w-full min-h-screen">
+      <div className="overflow-x-hidden w-full min-h-screen touch-pan-y">
         <CinematicHero
           tagline1={landingCopy.hero.tagline1}
           tagline2={landingCopy.hero.tagline2}
