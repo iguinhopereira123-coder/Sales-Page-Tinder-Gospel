@@ -425,13 +425,15 @@ export function CinematicHero({
         ease: "expo.out",
       });
 
+      const scrollDistance = isMobile ? 3000 : 5200;
+
       const scrollTl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: isMobile ? "+=4200" : "+=7000",
+          end: `+=${scrollDistance}`,
           pin: true,
-          scrub: 1,
+          scrub: 0.45,
           anticipatePin: 1,
         },
       });
@@ -443,32 +445,32 @@ export function CinematicHero({
             clipPath: "inset(0 0% 0 0)",
             filter: "blur(0px)",
             x: 0,
-            ease: "power3.out",
-            duration: 0.55,
+            ease: "none",
+            duration: 0.35,
           },
           0
         )
-        .to(
-          ".hero-headline",
-          { scale: 1.02, ease: "power2.out", duration: 0.35 },
-          0.35
-        )
+        .to(".hero-headline", { scale: 1.02, ease: "none", duration: 0.2 }, 0.2)
         .to(
           [".hero-text-wrapper", ".bg-grid-theme"],
-          { scale: 1.15, filter: "blur(20px)", opacity: 0.2, ease: "power2.inOut", duration: 2 },
+          { scale: 1.12, filter: "blur(16px)", opacity: 0.25, ease: "none", duration: 0.7 },
+          0.35
+        )
+        .to(".main-card", { y: 0, ease: "none", duration: 0.85 }, 0.25)
+        .to(
+          ".main-card",
+          {
+            width: "100%",
+            height: "100%",
+            borderRadius: "0px",
+            ease: "none",
+            duration: 0.75,
+          },
           0.55
         )
-        .to(".main-card", { y: 0, ease: "power3.inOut", duration: 2 }, 0.4)
-        .to(".main-card", {
-          width: "100%",
-          height: "100%",
-          borderRadius: "0px",
-          ease: "power3.inOut",
-          duration: 1.5,
-        })
         .fromTo(
           ".mockup-scroll-wrapper",
-          { y: 300, z: -500, rotationX: 50, rotationY: -30, autoAlpha: 0, scale: 0.6 },
+          { y: 220, z: -400, rotationX: 40, rotationY: -24, autoAlpha: 0, scale: 0.72 },
           {
             y: 0,
             z: 0,
@@ -476,64 +478,64 @@ export function CinematicHero({
             rotationY: 0,
             autoAlpha: 1,
             scale: 1,
-            ease: "expo.out",
-            duration: 2.5,
+            ease: "none",
+            duration: 1.35,
           },
-          "-=0.8"
+          0.65
         )
         .fromTo(
           ".phone-widget",
-          { y: 40, autoAlpha: 0, scale: 0.95 },
-          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.15, ease: "back.out(1.2)", duration: 1.5 },
-          "-=1.5"
+          { y: 32, autoAlpha: 0, scale: 0.94 },
+          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.08, ease: "none", duration: 1.1 },
+          1.05
         )
-        .to(".progress-ring", { strokeDashoffset: 60, duration: 2, ease: "power3.inOut" }, "-=1.2")
+        .to(".progress-ring", { strokeDashoffset: 60, duration: 1.2, ease: "none" }, 1.15)
         .to(
           ".counter-val",
-          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 2, ease: "expo.out" },
-          "-=2.0"
+          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 1.2, ease: "none" },
+          1.15
         )
         .fromTo(
           ".floating-badge",
-          { y: 100, autoAlpha: 0, scale: 0.7, rotationZ: -10 },
+          { y: 72, autoAlpha: 0, scale: 0.82, rotationZ: -8 },
           {
             y: 0,
             autoAlpha: 1,
             scale: 1,
             rotationZ: 0,
-            ease: "back.out(1.5)",
-            duration: 1.5,
-            stagger: 0.2,
+            ease: "none",
+            duration: 1,
+            stagger: 0.12,
           },
-          "-=2.0"
+          1.35
         )
         .fromTo(
           ".card-left-text",
-          { x: -50, autoAlpha: 0 },
-          { x: 0, autoAlpha: 1, ease: "power4.out", duration: 1.5 },
-          "-=1.5"
+          { x: -36, autoAlpha: 0 },
+          { x: 0, autoAlpha: 1, ease: "none", duration: 0.85 },
+          1.55
         )
         .fromTo(
           ".card-right-text",
-          { x: 50, autoAlpha: 0, scale: 0.8 },
-          { x: 0, autoAlpha: 1, scale: 1, ease: "expo.out", duration: 1.5 },
-          "<"
+          { x: 36, autoAlpha: 0, scale: 0.9 },
+          { x: 0, autoAlpha: 1, scale: 1, ease: "none", duration: 0.85 },
+          1.55
         )
-        .to({}, { duration: 2.5 })
+        .to({}, { duration: 0.35 })
         .set(".hero-text-wrapper", { autoAlpha: 0 })
         .set(".cta-wrapper", { autoAlpha: 1 })
-        .to({}, { duration: 1.5 })
         .to(
           [".mockup-scroll-wrapper", ".floating-badge", ".card-left-text", ".card-right-text"],
           {
-            scale: 0.9,
-            y: -40,
-            z: -200,
+            scale: 0.92,
+            y: -28,
+            z: -160,
             autoAlpha: 0,
-            ease: "power3.in",
-            duration: 1.2,
-            stagger: 0.05,
-          }
+            ease: "none",
+            duration: 0.9,
+            stagger: 0.04,
+          },
+          2.55
         )
         .to(
           ".main-card",
@@ -541,17 +543,17 @@ export function CinematicHero({
             width: isMobile ? "92vw" : "85vw",
             height: isMobile ? "92vh" : "85vh",
             borderRadius: isMobile ? "32px" : "40px",
-            ease: "expo.inOut",
-            duration: 1.8,
+            ease: "none",
+            duration: 1.1,
           },
-          "pullback"
+          2.45
         )
         .to(
           ".cta-wrapper",
-          { scale: 1, filter: "blur(0px)", ease: "expo.inOut", duration: 1.8 },
-          "pullback"
+          { scale: 1, filter: "blur(0px)", ease: "none", duration: 1.1 },
+          2.45
         )
-        .to(".main-card", { y: -window.innerHeight - 300, ease: "power3.in", duration: 1.5 });
+        .to(".main-card", { y: -window.innerHeight - 300, ease: "none", duration: 0.95 }, 3.2);
     }, containerRef);
 
     return () => ctx.revert();
