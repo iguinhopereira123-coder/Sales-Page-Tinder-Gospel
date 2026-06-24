@@ -47,7 +47,7 @@ export const landingCopy = {
       "App cristão + e-book de brinde",
       "Acesso liberado na hora",
     ],
-    trustBadges: ["Convite de acesso imediato enviado no seu WhatsApp e E-Mail"],
+    trustBadges: ["Receba o convite direto no seu E-Mail e WhatsApp"],
     checkoutLabel: "Garantir meu acesso",
     checkoutHint: "R$ 19,90 · pagamento único",
     supportLabel: "Tenho uma dúvida",
