@@ -419,27 +419,26 @@ export function CinematicHero({
 
       const introTl = gsap.timeline({ delay: 0.3 });
       introTl.to(".text-track", {
-        duration: 1.8,
+        duration: 2.2,
         autoAlpha: 1,
         y: 0,
         scale: 1,
         filter: "blur(0px)",
         rotationX: 0,
-        ease: "expo.out",
+        ease: "power2.out",
       });
 
-      const heroDriftY = isMobile ? 26 : 38;
       const STEPS = 4;
       const stepDuration = 1;
-      const stepTransitionDuration = isMobile ? 1.2 : 1.4;
-      const smoothEase = "power2.inOut";
+      const stepTransitionDuration = isMobile ? 1.9 : 2.2;
+      const smoothEase = "sine.inOut";
 
       const scrollTl = gsap.timeline({ paused: true });
 
       scrollTl
         .addLabel("hero", 0)
 
-        // Etapa 1 — revela "com a mesma fé." + pausa com leve descida
+        // Etapa 1 — revela "com a mesma fé." (sem deslocamento vertical)
         .to(
           ".text-days",
           {
@@ -447,22 +446,20 @@ export function CinematicHero({
             filter: "blur(0px)",
             x: 0,
             ease: smoothEase,
-            duration: 0.38,
+            duration: 0.58,
           },
-          0.08
+          0.12
         )
-        .to(".hero-headline", { scale: 1.02, ease: smoothEase, duration: 0.28 }, 0.38)
-        .to(".hero-text-wrapper", { y: heroDriftY, ease: smoothEase, duration: 0.3 }, 0.58)
-        .to(".hero-text-wrapper", { y: 0, ease: smoothEase, duration: 0.32 }, 0.82)
+        .to(".hero-headline", { scale: 1.015, ease: smoothEase, duration: 0.42 }, 0.52)
         .addLabel("reveal", stepDuration)
 
-        // Etapa 2 — card + celular (distribuído ao longo do segmento)
+        // Etapa 2 — card + celular
         .to(
           [".hero-text-wrapper", ".bg-grid-theme"],
-          { scale: 1.12, filter: "blur(16px)", opacity: 0.25, ease: smoothEase, duration: 0.55 },
-          stepDuration + 0.05
+          { scale: 1.1, filter: "blur(14px)", opacity: 0.28, ease: smoothEase, duration: 0.82 },
+          stepDuration + 0.08
         )
-        .to(".main-card", { y: 0, ease: smoothEase, duration: 0.62 }, stepDuration + 0.05)
+        .to(".main-card", { y: 0, ease: smoothEase, duration: 0.92 }, stepDuration + 0.08)
         .to(
           ".main-card",
           {
@@ -470,9 +467,9 @@ export function CinematicHero({
             height: "100%",
             borderRadius: "0px",
             ease: smoothEase,
-            duration: 0.52,
+            duration: 0.78,
           },
-          stepDuration + 0.35
+          stepDuration + 0.42
         )
         .fromTo(
           ".mockup-scroll-wrapper",
@@ -485,25 +482,25 @@ export function CinematicHero({
             autoAlpha: 1,
             scale: 1,
             ease: smoothEase,
-            duration: 0.72,
+            duration: 1.05,
           },
-          stepDuration + 0.28
+          stepDuration + 0.35
         )
         .fromTo(
           ".phone-widget",
           { y: 32, autoAlpha: 0, scale: 0.94 },
-          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.1, ease: smoothEase, duration: 0.55 },
-          stepDuration + 0.62
+          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.14, ease: smoothEase, duration: 0.78 },
+          stepDuration + 0.78
         )
         .to(
           ".progress-ring",
-          { strokeDashoffset: 60, duration: 0.62, ease: smoothEase },
-          stepDuration + 0.78
+          { strokeDashoffset: 60, duration: 0.88, ease: smoothEase },
+          stepDuration + 0.95
         )
         .to(
           ".counter-val",
-          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 0.62, ease: smoothEase },
-          stepDuration + 0.78
+          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 0.88, ease: smoothEase },
+          stepDuration + 0.95
         )
         .fromTo(
           ".floating-badge",
@@ -514,31 +511,31 @@ export function CinematicHero({
             scale: 1,
             rotationZ: 0,
             ease: smoothEase,
-            duration: 0.5,
-            stagger: 0.14,
+            duration: 0.72,
+            stagger: 0.18,
           },
-          stepDuration + 0.88
+          stepDuration + 1.08
         )
         .fromTo(
           ".card-left-text",
           { x: -36, autoAlpha: 0 },
-          { x: 0, autoAlpha: 1, ease: smoothEase, duration: 0.48 },
-          stepDuration + 1.02
+          { x: 0, autoAlpha: 1, ease: smoothEase, duration: 0.68 },
+          stepDuration + 1.22
         )
         .fromTo(
           ".card-right-text",
           { x: 36, autoAlpha: 0, scale: 0.9 },
-          { x: 0, autoAlpha: 1, scale: 1, ease: smoothEase, duration: 0.48 },
-          stepDuration + 1.02
+          { x: 0, autoAlpha: 1, scale: 1, ease: smoothEase, duration: 0.68 },
+          stepDuration + 1.22
         )
         .addLabel("card", stepDuration * 2)
 
         // Etapa 3 — CTA de pagamento
-        .to(".hero-text-wrapper", { autoAlpha: 0, ease: smoothEase, duration: 0.4 }, stepDuration * 2 + 0.05)
+        .to(".hero-text-wrapper", { autoAlpha: 0, ease: smoothEase, duration: 0.62 }, stepDuration * 2 + 0.08)
         .to(
           ".cta-wrapper",
-          { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: smoothEase, duration: 0.55 },
-          stepDuration * 2 + 0.12
+          { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: smoothEase, duration: 0.82 },
+          stepDuration * 2 + 0.18
         )
         .to(
           [".mockup-scroll-wrapper", ".floating-badge", ".card-left-text", ".card-right-text"],
@@ -548,10 +545,10 @@ export function CinematicHero({
             z: -160,
             autoAlpha: 0,
             ease: smoothEase,
-            duration: 0.62,
-            stagger: 0.06,
+            duration: 0.88,
+            stagger: 0.1,
           },
-          stepDuration * 2 + 0.2
+          stepDuration * 2 + 0.28
         )
         .to(
           ".main-card",
@@ -560,14 +557,14 @@ export function CinematicHero({
             height: isMobile ? "92vh" : "85vh",
             borderRadius: isMobile ? "32px" : "40px",
             ease: smoothEase,
-            duration: 0.72,
+            duration: 0.95,
           },
-          stepDuration * 2 + 0.2
+          stepDuration * 2 + 0.28
         )
         .to(
           ".main-card",
-          { y: -window.innerHeight - 300, ease: smoothEase, duration: 0.65 },
-          stepDuration * 2 + 0.72
+          { y: -window.innerHeight - 300, ease: smoothEase, duration: 0.88 },
+          stepDuration * 2 + 0.88
         )
         .addLabel("cta", stepDuration * 3);
 
@@ -616,7 +613,7 @@ export function CinematicHero({
         stepAnimation = gsap.to(stepDriver, {
           progress: targetProgress,
           duration: stepTransitionDuration,
-          ease: "power3.inOut",
+          ease: "sine.inOut",
           overwrite: "auto",
           onUpdate: () => applyProgress(stepDriver.progress),
           onComplete: () => {
