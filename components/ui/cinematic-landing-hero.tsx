@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { cn } from "@/lib/utils";
 import { landingCopy } from "@/lib/copy/landing";
 
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
+  gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 }
 
 const INJECTED_STYLES = `
@@ -345,6 +346,8 @@ export function CinematicHero({
   const mainCardRef = useRef<HTMLDivElement>(null);
   const mockupRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>(0);
+  const currentStepRef = useRef(0);
+  const isAnimatingRef = useRef(false);
   const [showScrollHint, setShowScrollHint] = useState(true);
 
   useEffect(() => {
@@ -392,6 +395,7 @@ export function CinematicHero({
 
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
+    let removeStepNav: (() => void) | undefined;
 
     const ctx = gsap.context(() => {
       gsap.set(".text-track", {
@@ -428,23 +432,17 @@ export function CinematicHero({
       const heroDriftY = isMobile ? 26 : 38;
       const STEPS = 4;
       const stepDuration = 1;
-      const scrollDistance = window.innerHeight * (STEPS - 1);
+      const stepScrollPercent = (STEPS - 1) * 100;
 
       const scrollTl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: `+=${scrollDistance}`,
+          end: `+=${stepScrollPercent}%`,
           pin: true,
-          scrub: 0.35,
+          scrub: 0.05,
           anticipatePin: 1,
           invalidateOnRefresh: true,
-          snap: {
-            snapTo: (value) => Math.round(value * (STEPS - 1)) / (STEPS - 1),
-            duration: { min: 0.35, max: 0.65 },
-            ease: "power2.inOut",
-            delay: 0.06,
-          },
         },
       });
 
@@ -579,9 +577,140 @@ export function CinematicHero({
           stepDuration * 2 + 0.55
         )
         .addLabel("cta", stepDuration * 3);
+
+      const st = scrollTl.scrollTrigger;
+      if (!st) return;
+
+      const stepProgress = (step: number) => step / (STEPS - 1);
+      const scrollYForStep = (step: number) => st.start + stepProgress(step) * (st.end - st.start);
+
+      const syncStepFromScroll = () => {
+        currentStepRef.current = Math.round(st.progress * (STEPS - 1));
+      };
+
+      const goToStep = (step: number) => {
+        const clamped = Math.max(0, Math.min(STEPS - 1, step));
+        if (isAnimatingRef.current || clamped === currentStepRef.current) return;
+
+        isAnimatingRef.current = true;
+        currentStepRef.current = clamped;
+
+        if (clamped > 0) setShowScrollHint(false);
+
+        gsap.to(window, {
+          scrollTo: scrollYForStep(clamped),
+          duration: 0.52,
+          ease: "power2.inOut",
+          overwrite: "auto",
+          onComplete: () => {
+            isAnimatingRef.current = false;
+            syncStepFromScroll();
+          },
+        });
+      };
+
+      const wheelThreshold = isMobile ? 55 : 90;
+      let wheelDelta = 0;
+      let wheelResetTimer: ReturnType<typeof setTimeout> | undefined;
+      let touchStartY = 0;
+
+      const queueWheelStep = (direction: 1 | -1) => {
+        const next = currentStepRef.current + direction;
+        if (next < 0 || next >= STEPS) return false;
+        goToStep(next);
+        return true;
+      };
+
+      const onWheel = (event: WheelEvent) => {
+        if (!st.isActive) return;
+
+        wheelDelta += event.deltaY;
+        clearTimeout(wheelResetTimer);
+        wheelResetTimer = setTimeout(() => {
+          wheelDelta = 0;
+        }, 140);
+
+        if (Math.abs(wheelDelta) < wheelThreshold) return;
+
+        const direction: 1 | -1 = wheelDelta > 0 ? 1 : -1;
+        wheelDelta = 0;
+
+        if (isAnimatingRef.current) {
+          event.preventDefault();
+          return;
+        }
+
+        const handled = queueWheelStep(direction);
+        if (handled) event.preventDefault();
+      };
+
+      const onTouchStart = (event: TouchEvent) => {
+        touchStartY = event.touches[0]?.clientY ?? 0;
+      };
+
+      const onTouchEnd = (event: TouchEvent) => {
+        if (!st.isActive || isAnimatingRef.current) return;
+
+        const touchEndY = event.changedTouches[0]?.clientY ?? touchStartY;
+        const delta = touchStartY - touchEndY;
+        const touchThreshold = isMobile ? 48 : 64;
+
+        if (Math.abs(delta) < touchThreshold) return;
+
+        const direction: 1 | -1 = delta > 0 ? 1 : -1;
+        queueWheelStep(direction);
+      };
+
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (!st.isActive || isAnimatingRef.current) return;
+        if (event.key === "ArrowDown" || event.key === "PageDown") {
+          event.preventDefault();
+          queueWheelStep(1);
+        } else if (event.key === "ArrowUp" || event.key === "PageUp") {
+          event.preventDefault();
+          queueWheelStep(-1);
+        }
+      };
+
+      let scrollSnapTimer: ReturnType<typeof setTimeout> | undefined;
+      const onScrollSnap = () => {
+        if (isAnimatingRef.current) return;
+        clearTimeout(scrollSnapTimer);
+        scrollSnapTimer = setTimeout(() => {
+          if (!st.isActive || isAnimatingRef.current) return;
+          const nearest = Math.round(st.progress * (STEPS - 1));
+          const targetProgress = stepProgress(nearest);
+          if (Math.abs(st.progress - targetProgress) > 0.04) {
+            goToStep(nearest);
+          } else {
+            currentStepRef.current = nearest;
+          }
+        }, 90);
+      };
+
+      syncStepFromScroll();
+
+      window.addEventListener("wheel", onWheel, { passive: false });
+      window.addEventListener("touchstart", onTouchStart, { passive: true });
+      window.addEventListener("touchend", onTouchEnd, { passive: true });
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("scroll", onScrollSnap, { passive: true });
+
+      removeStepNav = () => {
+        clearTimeout(wheelResetTimer);
+        clearTimeout(scrollSnapTimer);
+        window.removeEventListener("wheel", onWheel);
+        window.removeEventListener("touchstart", onTouchStart);
+        window.removeEventListener("touchend", onTouchEnd);
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("scroll", onScrollSnap);
+      };
     }, containerRef);
 
-    return () => ctx.revert();
+    return () => {
+      removeStepNav?.();
+      ctx.revert();
+    };
   }, [metricValue]);
 
   return (
