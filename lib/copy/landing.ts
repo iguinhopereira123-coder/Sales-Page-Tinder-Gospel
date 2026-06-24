@@ -8,7 +8,7 @@ export const landingCopy = {
   hero: {
     tagline1: "Conheça alguém",
     tagline2: "com a mesma fé.",
-    scrollHint: "Role para completar a frase",
+    scrollHint: "Role para continuar",
   },
 
   card: {
@@ -47,7 +47,7 @@ export const landingCopy = {
       "App cristão + e-book de brinde",
       "Acesso liberado na hora",
     ],
-    trustBadges: ["Pagamento seguro", "Acesso imediato", "Sem mensalidade"],
+    trustBadges: ["Convite de acesso imediato enviado no seu WhatsApp e E-Mail"],
     checkoutLabel: "Garantir meu acesso",
     checkoutHint: "R$ 19,90 · pagamento único",
     supportLabel: "Tenho uma dúvida",

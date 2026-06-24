@@ -425,7 +425,10 @@ export function CinematicHero({
         ease: "expo.out",
       });
 
-      const scrollDistance = isMobile ? 3000 : 5200;
+      const heroDriftY = isMobile ? 26 : 38;
+      const STEPS = 4;
+      const stepDuration = 1;
+      const scrollDistance = window.innerHeight * (STEPS - 1);
 
       const scrollTl = gsap.timeline({
         scrollTrigger: {
@@ -433,40 +436,55 @@ export function CinematicHero({
           start: "top top",
           end: `+=${scrollDistance}`,
           pin: true,
-          scrub: 0.45,
+          scrub: 0.35,
           anticipatePin: 1,
+          invalidateOnRefresh: true,
+          snap: {
+            snapTo: (value) => Math.round(value * (STEPS - 1)) / (STEPS - 1),
+            duration: { min: 0.35, max: 0.65 },
+            ease: "power2.inOut",
+            delay: 0.06,
+          },
         },
       });
 
       scrollTl
+        .addLabel("hero", 0)
+
+        // Etapa 1 — revela "com a mesma fé." + pausa com leve descida
         .to(
           ".text-days",
           {
             clipPath: "inset(0 0% 0 0)",
             filter: "blur(0px)",
             x: 0,
-            ease: "none",
-            duration: 0.35,
+            ease: "power2.out",
+            duration: 0.28,
           },
-          0
+          0.05
         )
-        .to(".hero-headline", { scale: 1.02, ease: "none", duration: 0.2 }, 0.2)
+        .to(".hero-headline", { scale: 1.02, ease: "power2.out", duration: 0.18 }, 0.28)
+        .to(".hero-text-wrapper", { y: heroDriftY, ease: "power2.out", duration: 0.2 }, 0.48)
+        .to(".hero-text-wrapper", { y: 0, ease: "power2.inOut", duration: 0.2 }, 0.78)
+        .addLabel("reveal", stepDuration)
+
+        // Etapa 2 — card + celular
         .to(
           [".hero-text-wrapper", ".bg-grid-theme"],
-          { scale: 1.12, filter: "blur(16px)", opacity: 0.25, ease: "none", duration: 0.7 },
-          0.35
+          { scale: 1.12, filter: "blur(16px)", opacity: 0.25, ease: "power2.inOut", duration: 0.45 },
+          stepDuration
         )
-        .to(".main-card", { y: 0, ease: "none", duration: 0.85 }, 0.25)
+        .to(".main-card", { y: 0, ease: "power3.inOut", duration: 0.55 }, stepDuration)
         .to(
           ".main-card",
           {
             width: "100%",
             height: "100%",
             borderRadius: "0px",
-            ease: "none",
-            duration: 0.75,
+            ease: "power3.inOut",
+            duration: 0.45,
           },
-          0.55
+          stepDuration + 0.2
         )
         .fromTo(
           ".mockup-scroll-wrapper",
@@ -478,22 +496,22 @@ export function CinematicHero({
             rotationY: 0,
             autoAlpha: 1,
             scale: 1,
-            ease: "none",
-            duration: 1.35,
+            ease: "expo.out",
+            duration: 0.65,
           },
-          0.65
+          stepDuration + 0.15
         )
         .fromTo(
           ".phone-widget",
           { y: 32, autoAlpha: 0, scale: 0.94 },
-          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.08, ease: "none", duration: 1.1 },
-          1.05
+          { y: 0, autoAlpha: 1, scale: 1, stagger: 0.06, ease: "back.out(1.2)", duration: 0.5 },
+          stepDuration + 0.45
         )
-        .to(".progress-ring", { strokeDashoffset: 60, duration: 1.2, ease: "none" }, 1.15)
+        .to(".progress-ring", { strokeDashoffset: 60, duration: 0.55, ease: "power3.inOut" }, stepDuration + 0.55)
         .to(
           ".counter-val",
-          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 1.2, ease: "none" },
-          1.15
+          { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 0.55, ease: "expo.out" },
+          stepDuration + 0.55
         )
         .fromTo(
           ".floating-badge",
@@ -503,27 +521,29 @@ export function CinematicHero({
             autoAlpha: 1,
             scale: 1,
             rotationZ: 0,
-            ease: "none",
-            duration: 1,
-            stagger: 0.12,
+            ease: "back.out(1.4)",
+            duration: 0.45,
+            stagger: 0.1,
           },
-          1.35
+          stepDuration + 0.65
         )
         .fromTo(
           ".card-left-text",
           { x: -36, autoAlpha: 0 },
-          { x: 0, autoAlpha: 1, ease: "none", duration: 0.85 },
-          1.55
+          { x: 0, autoAlpha: 1, ease: "power4.out", duration: 0.4 },
+          stepDuration + 0.78
         )
         .fromTo(
           ".card-right-text",
           { x: 36, autoAlpha: 0, scale: 0.9 },
-          { x: 0, autoAlpha: 1, scale: 1, ease: "none", duration: 0.85 },
-          1.55
+          { x: 0, autoAlpha: 1, scale: 1, ease: "expo.out", duration: 0.4 },
+          stepDuration + 0.78
         )
-        .to({}, { duration: 0.35 })
-        .set(".hero-text-wrapper", { autoAlpha: 0 })
-        .set(".cta-wrapper", { autoAlpha: 1 })
+        .addLabel("card", stepDuration * 2)
+
+        // Etapa 3 — CTA de pagamento
+        .set(".hero-text-wrapper", { autoAlpha: 0 }, stepDuration * 2)
+        .set(".cta-wrapper", { autoAlpha: 1 }, stepDuration * 2)
         .to(
           [".mockup-scroll-wrapper", ".floating-badge", ".card-left-text", ".card-right-text"],
           {
@@ -531,11 +551,11 @@ export function CinematicHero({
             y: -28,
             z: -160,
             autoAlpha: 0,
-            ease: "none",
-            duration: 0.9,
+            ease: "power3.in",
+            duration: 0.55,
             stagger: 0.04,
           },
-          2.55
+          stepDuration * 2 + 0.05
         )
         .to(
           ".main-card",
@@ -543,17 +563,22 @@ export function CinematicHero({
             width: isMobile ? "92vw" : "85vw",
             height: isMobile ? "92vh" : "85vh",
             borderRadius: isMobile ? "32px" : "40px",
-            ease: "none",
-            duration: 1.1,
+            ease: "expo.inOut",
+            duration: 0.65,
           },
-          2.45
+          stepDuration * 2 + 0.05
         )
         .to(
           ".cta-wrapper",
-          { scale: 1, filter: "blur(0px)", ease: "none", duration: 1.1 },
-          2.45
+          { scale: 1, filter: "blur(0px)", ease: "expo.inOut", duration: 0.65 },
+          stepDuration * 2 + 0.05
         )
-        .to(".main-card", { y: -window.innerHeight - 300, ease: "none", duration: 0.95 }, 3.2);
+        .to(
+          ".main-card",
+          { y: -window.innerHeight - 300, ease: "power3.in", duration: 0.55 },
+          stepDuration * 2 + 0.55
+        )
+        .addLabel("cta", stepDuration * 3);
     }, containerRef);
 
     return () => ctx.revert();
